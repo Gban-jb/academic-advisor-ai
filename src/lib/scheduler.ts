@@ -1,10 +1,22 @@
 import {
   COURSES, CS_MAJOR_REQUIRED, CONCENTRATION_COURSES, CORE_CMP,
   PROGRAM_ELECTIVES, GENED_FIXED, GENED_GROUPS,
-  TOTAL_CREDITS_REQUIRED, CREDIT_MIN, CREDIT_TARGET, CREDIT_MAX,
+  TOTAL_CREDITS_REQUIRED, CREDIT_MIN, CREDIT_MAX,
+  EXPECTED_SEMESTERS,
   gradeIsPassing, gradeIsRegistered,
   type Concentration, type StudentData, type TranscriptEntry,
 } from "./data";
+
+// Courses that are "CS-track critical" — should be scheduled first each semester
+function isHighPriority(code: string, concentration: Concentration): boolean {
+  return (
+    CS_MAJOR_REQUIRED.includes(code) ||
+    CONCENTRATION_COURSES[concentration].includes(code) ||
+    CORE_CMP.includes(code) ||
+    code.startsWith("MTH") ||   // math prereqs unlock CS courses
+    code.startsWith("PHY")      // physics is a fixed gen-ed requirement
+  );
+}
 
 export interface ScheduledSemester {
   label: string;       // e.g. "Semester 1 (Fall 2026)"
@@ -20,6 +32,10 @@ export interface ScheduleResult {
   graduationSemester: string;
   totalRemaining: number;
   completedCredits: number;
+  expectedSemesters: number;
+  earlyGraduationPossible: boolean;
+  creditTargetOverridden: boolean;
+  effectiveCreditTarget: number; // the per-semester target actually used
 }
 
 // Courses with a passing grade in the transcript
@@ -130,7 +146,10 @@ function semesterLabel(index: number, startTerm: string): string {
   return `${season} ${year}`;
 }
 
-export function buildSchedule(student: StudentData): ScheduleResult {
+export function buildSchedule(
+  student: StudentData,
+  opts?: { overrideSemesters?: number }
+): ScheduleResult {
   const done = getDoneSet(student.transcript);
   const registered = getRegisteredSet(student.transcript);
   const failed = getFailedSet(student.transcript);
@@ -165,11 +184,29 @@ export function buildSchedule(student: StudentData): ScheduleResult {
   const mainQueue = queue.filter((c) => !retakeQueue.includes(c));
   const fullQueue = [...retakeQueue, ...mainQueue];
 
-  // Schedule remaining semesters
+  // ── Determine effective credit target ───────────────────────────────────
+  const expectedSems = EXPECTED_SEMESTERS[student.classification ?? "frosh1"];
+  const rawTarget = student.creditTarget ?? 15;
+  const alreadyDoneCredits = Array.from(completedAfterSem1).reduce(
+    (s, c) => s + (COURSES[c]?.credits ?? 3), 0
+  );
+  const remainingCreditsTotal = TOTAL_CREDITS_REQUIRED - alreadyDoneCredits;
+
+  // Auto-upgrade target if chosen load can't finish within the expected timeline
+  const minTargetForTimeline = Math.ceil(remainingCreditsTotal / Math.max(1, expectedSems));
+  const neededTarget = Math.min(minTargetForTimeline, CREDIT_MAX);
+  const creditTargetOverridden = rawTarget < neededTarget;
+  const baseTarget = creditTargetOverridden ? neededTarget : rawTarget;
+
+  // Number of future semesters to target (for ascending ramp)
+  const targetSems = opts?.overrideSemesters ?? null;
+
+  // ── Main scheduling loop ────────────────────────────────────────────────
   let completed = new Set(completedAfterSem1);
   let remaining = fullQueue.filter((c) => !completed.has(c));
   let semIndex = semesters.length;
-  const MAX_SEMESTERS = 20; // safety limit
+  const MAX_SEMESTERS = 20;
+  const firstFutureSemIdx = semIndex; // index of first unregistered semester
 
   while (remaining.length > 0 && semIndex < MAX_SEMESTERS) {
     const semCourses: string[] = [];
@@ -177,14 +214,12 @@ export function buildSchedule(student: StudentData): ScheduleResult {
     const semWarnings: string[] = [];
     let semCredits = 0;
 
-    // Try to fill this semester up to CREDIT_TARGET, never exceed CREDIT_MAX
     const available = remaining.filter((c) => prereqsMet(c, completed));
 
     if (available.length === 0) {
-      // Circular dep or missing data — add warning and break
       semWarnings.push(`Cannot schedule remaining courses: ${remaining.join(", ")}`);
       semesters.push({
-        label: `Semester ${semIndex + 1} (${semesterLabel(semIndex, "Fall 2026")})`,
+        label: semesterLabel(semIndex, "Fall 2026"),
         courses: [],
         totalCredits: 0,
         load: "light",
@@ -194,24 +229,54 @@ export function buildSchedule(student: StudentData): ScheduleResult {
       break;
     }
 
-    for (const code of available) {
+    // Ascending ramp: when spreading over targetSems, start light → grow heavy
+    let semTarget: number;
+    if (targetSems !== null && targetSems > 1) {
+      const relIdx = semIndex - firstFutureSemIdx;
+      semTarget = Math.round(
+        CREDIT_MIN + ((baseTarget - CREDIT_MIN) * relIdx) / Math.max(1, targetSems - 1)
+      );
+      semTarget = Math.max(CREDIT_MIN, Math.min(CREDIT_MAX, semTarget));
+    } else {
+      semTarget = baseTarget;
+    }
+
+    const highPriority = available.filter((c) => isHighPriority(c, student.concentration));
+    const genEdFiller  = available.filter((c) => !isHighPriority(c, student.concentration));
+
+    const tryAdd = (code: string) => {
       const credits = COURSES[code]?.credits ?? 3;
-      if (semCredits + credits > CREDIT_MAX) continue;
+      if (semCredits + credits > CREDIT_MAX) return false;
       semCourses.push(code);
       semCredits += credits;
       if (retakeQueue.includes(code)) semRetakes.push(code);
-      if (semCredits >= CREDIT_TARGET) break;
+      return true;
+    };
+
+    // Pass 1: fill ~2/3 of target with high-priority CS/math
+    const HIGH_CAP = Math.round(semTarget * 0.67);
+    for (const code of highPriority) {
+      if (semCredits >= HIGH_CAP) break;
+      tryAdd(code);
     }
 
-    // Ensure minimum load — add more if we're under
-    if (semCredits < CREDIT_MIN && semCourses.length < available.length) {
+    // Pass 2: fill to semTarget with gen-ed
+    for (const code of genEdFiller) {
+      if (semCredits >= semTarget) break;
+      tryAdd(code);
+    }
+
+    // Pass 3: if still under target, add more high-priority
+    for (const code of highPriority) {
+      if (semCredits >= semTarget) break;
+      if (!semCourses.includes(code)) tryAdd(code);
+    }
+
+    // Pass 4: if under minimum, add anything
+    if (semCredits < CREDIT_MIN) {
       for (const code of available) {
-        if (semCourses.includes(code)) continue;
-        const credits = COURSES[code]?.credits ?? 3;
-        if (semCredits + credits > CREDIT_MAX) continue;
-        semCourses.push(code);
-        semCredits += credits;
         if (semCredits >= CREDIT_MIN) break;
+        if (!semCourses.includes(code)) tryAdd(code);
       }
     }
 
@@ -219,9 +284,8 @@ export function buildSchedule(student: StudentData): ScheduleResult {
       semWarnings.push(`Only ${semCredits} credits available — may be below full-time minimum.`);
     }
 
-    const termLabel = semesterLabel(semIndex, "Fall 2026");
     semesters.push({
-      label: `${termLabel}`,
+      label: semesterLabel(semIndex, "Fall 2026"),
       courses: semCourses,
       totalCredits: semCredits,
       load: creditLoadLabel(semCredits),
@@ -229,10 +293,41 @@ export function buildSchedule(student: StudentData): ScheduleResult {
       warnings: semWarnings,
     });
 
-    // Update completed for next semester
     semCourses.forEach((c) => completed.add(c));
     remaining = remaining.filter((c) => !completed.has(c));
     semIndex++;
+  }
+
+  // ── Redistribution pass: ensure last semester has ≥ CREDIT_MIN ──────────
+  if (semesters.length >= 2) {
+    const lastIdx = semesters.length - 1;
+    const penultIdx = lastIdx - 1;
+
+    // Build the completed set right before the penultimate semester
+    const doneBeforePenult = new Set(completedAfterSem1);
+    for (let si = 0; si < penultIdx; si++) {
+      semesters[si].courses.forEach((c) => doneBeforePenult.add(c));
+    }
+
+    // Move courses from penultimate → last until last ≥ CREDIT_MIN
+    while (semesters[lastIdx].totalCredits < CREDIT_MIN) {
+      const movable = semesters[penultIdx].courses.find(
+        (c) => prereqsMet(c, doneBeforePenult)
+      );
+      if (!movable) break;
+
+      const cr = COURSES[movable]?.credits ?? 3;
+      semesters[penultIdx].courses = semesters[penultIdx].courses.filter((c) => c !== movable);
+      semesters[penultIdx].totalCredits -= cr;
+      semesters[penultIdx].load = creditLoadLabel(semesters[penultIdx].totalCredits);
+      semesters[lastIdx].courses.push(movable);
+      semesters[lastIdx].totalCredits += cr;
+      semesters[lastIdx].load = creditLoadLabel(semesters[lastIdx].totalCredits);
+      // Remove the warning once we've topped up
+      semesters[lastIdx].warnings = semesters[lastIdx].warnings.filter(
+        (w) => !w.startsWith("Only")
+      );
+    }
   }
 
   const completedCredits = Array.from(done).concat(Array.from(registered)).reduce(
@@ -240,11 +335,17 @@ export function buildSchedule(student: StudentData): ScheduleResult {
   );
 
   const lastSem = semesters[semesters.length - 1];
+  const earlyGraduationPossible =
+    remaining.length === 0 && semesters.length < expectedSems;
 
   return {
     semesters,
     graduationSemester: lastSem?.label ?? "Unknown",
     totalRemaining: remaining.length,
     completedCredits,
+    expectedSemesters: expectedSems,
+    earlyGraduationPossible,
+    creditTargetOverridden,
+    effectiveCreditTarget: baseTarget,
   };
 }

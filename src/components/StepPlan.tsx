@@ -1,13 +1,15 @@
 "use client";
 
 import { useMemo } from "react";
-import { motion } from "framer-motion";
-import { COURSES, CREDIT_MAX, type StudentData } from "@/lib/data";
+import { AnimatePresence, motion } from "framer-motion";
+import { COURSES, CREDIT_MAX, EXPECTED_SEMESTERS, type StudentData } from "@/lib/data";
 import { buildSchedule, type ScheduledSemester } from "@/lib/scheduler";
 import AnimatedNumber from "@/components/ui/AnimatedNumber";
+import AdvisorReport from "@/components/AdvisorReport";
 
 interface Props {
   student: StudentData;
+  onStudentChange: (updates: Partial<StudentData>) => void;
   onBack: () => void;
 }
 
@@ -19,8 +21,15 @@ const LOAD: Record<ScheduledSemester["load"], { label: string; chip: string; bar
 };
 const CONC = { AI: "Artificial Intelligence", CYB: "Cybersecurity", GCS: "General CS" };
 
-export default function StepPlan({ student, onBack }: Props) {
-  const result = useMemo(() => buildSchedule(student), [student]);
+export default function StepPlan({ student, onStudentChange, onBack }: Props) {
+  const result = useMemo(() => {
+    if (student.earlyGraduation === false) {
+      return buildSchedule(student, {
+        overrideSemesters: EXPECTED_SEMESTERS[student.classification],
+      });
+    }
+    return buildSchedule(student);
+  }, [student]);
 
   return (
     <div>
@@ -61,6 +70,109 @@ export default function StepPlan({ student, onBack }: Props) {
           </motion.div>
         ))}
       </div>
+
+      {/* Early graduation banner */}
+      <AnimatePresence>
+        {result.earlyGraduationPossible && student.earlyGraduation === undefined && (
+          <motion.div
+            key="early-grad"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-6 rounded-2xl border border-green-200 bg-green-50 px-5 py-4"
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">🎉</span>
+              <div className="flex-1">
+                <p className="font-semibold text-green-800 text-sm">
+                  You could graduate{" "}
+                  {result.expectedSemesters - result.semesters.length} semester(s) early — in{" "}
+                  <span className="font-bold">{result.graduationSemester}</span>!
+                </p>
+                <p className="text-xs text-green-600 mt-0.5 mb-3">
+                  Would you like to keep this accelerated plan, or spread your courses out over
+                  the full {result.expectedSemesters} semesters?
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => onStudentChange({ earlyGraduation: true })}
+                    className="bg-green-700 text-white text-xs font-semibold rounded-xl px-4 py-2 hover:bg-green-800 transition-colors"
+                  >
+                    Yes, graduate early ✓
+                  </button>
+                  <button
+                    onClick={() => onStudentChange({ earlyGraduation: false })}
+                    className="border border-green-300 text-green-800 text-xs font-semibold rounded-xl px-4 py-2 hover:bg-green-100 transition-colors"
+                  >
+                    No, spread it out
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {student.earlyGraduation === true && (
+          <motion.div
+            key="early-yes"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mb-6 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 flex items-center gap-2.5"
+          >
+            <span>🎓</span>
+            <p className="text-sm text-green-800">
+              <span className="font-semibold">Early graduation selected.</span> Your accelerated
+              plan is shown below.
+            </p>
+            <button
+              onClick={() => onStudentChange({ earlyGraduation: undefined })}
+              className="ml-auto text-xs text-green-600 underline hover:text-green-800 shrink-0"
+            >
+              Reconsider
+            </button>
+          </motion.div>
+        )}
+
+        {student.earlyGraduation === false && (
+          <motion.div
+            key="early-no"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 flex items-center gap-2.5"
+          >
+            <span>📅</span>
+            <p className="text-sm text-blue-800">
+              <span className="font-semibold">Spread-out plan.</span> Credits ramp up gradually
+              so each semester stays manageable.
+            </p>
+            <button
+              onClick={() => onStudentChange({ earlyGraduation: undefined })}
+              className="ml-auto text-xs text-blue-600 underline hover:text-blue-800 shrink-0"
+            >
+              Reconsider
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Credit target override notice */}
+      {result.creditTargetOverridden && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-2.5"
+        >
+          <span className="text-lg">⚠️</span>
+          <p className="text-sm text-amber-800">
+            <span className="font-semibold">
+              Credit load raised to {result.effectiveCreditTarget}/semester.
+            </span>{" "}
+            Your chosen target isn&apos;t enough to finish within{" "}
+            {result.expectedSemesters} semesters, so we&apos;ve increased it to keep
+            you on track.
+          </p>
+        </motion.div>
+      )}
 
       {/* Timeline */}
       <div className="relative pl-6">
@@ -136,6 +248,9 @@ export default function StepPlan({ student, onBack }: Props) {
           <p className="text-sm font-semibold text-maroon-800 pl-1">Graduation · {result.graduationSemester}</p>
         </motion.div>
       </div>
+
+      {/* AI Advisor Report */}
+      <AdvisorReport student={student} scheduleResult={result} />
 
       {/* Nav */}
       <div className="flex justify-between mt-8 no-print">

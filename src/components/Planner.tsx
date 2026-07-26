@@ -2,27 +2,28 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { EMPTY_STUDENT, type StudentData, type Concentration } from "@/lib/data";
+import { EMPTY_STUDENT, YEAR1_SEM1_COURSES, type StudentData, type Concentration } from "@/lib/data";
+import StepClassification from "@/components/StepClassification";
 import StepEntry from "@/components/StepEntry";
 import StepReview from "@/components/StepReview";
 import StepConcentration from "@/components/StepConcentration";
 import StepPlan from "@/components/StepPlan";
 
-const STEPS = ["Courses", "Review", "Concentration", "Plan"] as const;
+const STEPS = ["Standing", "Courses", "Review", "Concentration", "Plan"] as const;
 
 const stepVariants = {
   enter: (d: number) => ({ opacity: 0, x: d * 40 }),
   center: { opacity: 1, x: 0 },
-  exit: (d: number) => ({ opacity: 0, x: d * -40 }),
+  exit:  (d: number) => ({ opacity: 0, x: d * -40 }),
 };
 
 interface Props {
-  onExit: () => void; // leave the planner, back to university detail
+  onExit: () => void;
 }
 
 export default function Planner({ onExit }: Props) {
-  const [step, setStep] = useState(0);
-  const [dir, setDir] = useState(1);
+  const [step, setStep]       = useState(0);
+  const [dir,  setDir]        = useState(1);
   const [student, setStudent] = useState<StudentData>(EMPTY_STUDENT);
 
   const go = (target: number) => {
@@ -31,6 +32,15 @@ export default function Planner({ onExit }: Props) {
   };
   const next = () => go(step + 1);
   const back = () => (step === 0 ? onExit() : go(step - 1));
+
+  // When Classification is confirmed, auto-fill freshman 1st-sem courses
+  const handleClassificationNext = () => {
+    if (student.classification === "frosh1") {
+      // Pre-fill standard first-semester courses; student can still edit them
+      setStudent((s) => ({ ...s, transcript: YEAR1_SEM1_COURSES, gpa: s.gpa || 0 }));
+    }
+    next();
+  };
 
   const progress = (step / (STEPS.length - 1)) * 100;
 
@@ -45,10 +55,14 @@ export default function Planner({ onExit }: Props) {
       >
         <div className="flex items-center gap-3">
           <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-maroon-700 to-maroon-900 flex items-center justify-center shadow-soft">
-            <span className="text-gold-300 font-bold text-lg">A</span>
+            <span className="text-gold-300 font-bold text-lg">
+              {student.name ? student.name[0].toUpperCase() : "A"}
+            </span>
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-maroon-900 leading-none">The Lab</h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-maroon-900 leading-none">
+              {student.name ? student.name : "The Lab"}
+            </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">AAMU · BS Computer Science · Degree Planner</p>
           </div>
         </div>
@@ -68,7 +82,7 @@ export default function Planner({ onExit }: Props) {
             transition={{ duration: 0.5, ease: "easeInOut" }}
           />
           {STEPS.map((label, i) => {
-            const done = i < step;
+            const done   = i < step;
             const active = i === step;
             return (
               <button key={label} onClick={() => i < step && go(i)} disabled={i > step}
@@ -109,9 +123,23 @@ export default function Planner({ onExit }: Props) {
             transition={{ duration: 0.35, ease: "easeInOut" }}
             className="surface rounded-3xl shadow-soft border border-white/60 p-5 sm:p-7"
           >
-            {step === 0 && <StepEntry student={student} onChange={setStudent} onNext={next} />}
-            {step === 1 && <StepReview student={student} onBack={back} onNext={next} />}
-            {step === 2 && (
+            {step === 0 && (
+              <StepClassification
+                student={student}
+                onChange={(u) => setStudent((s) => ({ ...s, ...u }))}
+                onNext={handleClassificationNext}
+                onBack={back}
+              />
+            )}
+            {step === 1 && (
+              <StepEntry
+                student={student}
+                onChange={setStudent}
+                onNext={next}
+              />
+            )}
+            {step === 2 && <StepReview student={student} onBack={back} onNext={next} />}
+            {step === 3 && (
               <StepConcentration
                 current={student.concentration}
                 onChange={(c: Concentration) => setStudent((s) => ({ ...s, concentration: c }))}
@@ -119,7 +147,13 @@ export default function Planner({ onExit }: Props) {
                 onNext={next}
               />
             )}
-            {step === 3 && <StepPlan student={student} onBack={back} />}
+            {step === 4 && (
+              <StepPlan
+                student={student}
+                onStudentChange={(u) => setStudent((s) => ({ ...s, ...u }))}
+                onBack={back}
+              />
+            )}
           </motion.div>
         </AnimatePresence>
       </div>

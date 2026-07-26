@@ -32,3 +32,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python
+__pycache__/
+*.py[cod]
+
+# generated RAG data (large; recreate with scripts/build_full_rag_database.py)
+scripts/data/
+
+# python secrets
+scripts/.env

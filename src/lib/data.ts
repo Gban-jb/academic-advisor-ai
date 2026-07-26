@@ -26,12 +26,44 @@ export interface TranscriptEntry {
   term?: string;
 }
 
+export type Classification =
+  | "frosh1" | "frosh2"
+  | "soph1"  | "soph2"
+  | "junior1"| "junior2"
+  | "senior1"| "senior2";
+
+export const CLASSIFICATION_LABELS: Record<Classification, string> = {
+  frosh1:  "Freshman (1st Semester)",
+  frosh2:  "Freshman (2nd Semester)",
+  soph1:   "Sophomore (1st Semester)",
+  soph2:   "Sophomore (2nd Semester)",
+  junior1: "Junior (1st Semester)",
+  junior2: "Junior (2nd Semester)",
+  senior1: "Senior (1st Semester)",
+  senior2: "Senior (2nd Semester)",
+};
+
+// Semesters remaining INCLUDING the current one
+export const EXPECTED_SEMESTERS: Record<Classification, number> = {
+  frosh1:  8,
+  frosh2:  7,
+  soph1:   6,
+  soph2:   5,
+  junior1: 4,
+  junior2: 3,
+  senior1: 2,
+  senior2: 1,
+};
+
 export interface StudentData {
   name: string;
   id: string;
   gpa: number;
   concentration: Concentration;
   transcript: TranscriptEntry[];
+  classification: Classification;
+  creditTarget: 12 | 15 | 18;
+  earlyGraduation?: boolean; // undefined = not yet decided
 }
 
 // Normalize course code: "CS102" → "CS 102"
@@ -220,10 +252,21 @@ export const CREDIT_MAX = 18;
 // ─── Empty starting student ──────────────────────────────────────────────────
 // The planner begins blank — students upload a transcript or add courses manually.
 
+// Standard first-semester courses for an incoming freshman (all have no prereqs)
+export const YEAR1_SEM1_COURSES: TranscriptEntry[] = [
+  { code: "CS 102",  grade: "REG", credits: 3 },
+  { code: "ENG 101", grade: "REG", credits: 3 },
+  { code: "MTH 125", grade: "REG", credits: 4 },
+  { code: "ORI 101", grade: "REG", credits: 1 },
+  { code: "PHY 213", grade: "REG", credits: 4 },
+]; // 15 credits total
+
 export const EMPTY_STUDENT: StudentData = {
   name: "",
   id: "",
   gpa: 0,
   concentration: "AI",
   transcript: [],
+  classification: "frosh1",
+  creditTarget: 15,
 };

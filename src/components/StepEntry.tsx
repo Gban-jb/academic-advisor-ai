@@ -85,9 +85,31 @@ export default function StepEntry({ student, onChange, onNext }: Props) {
       <div className="flex items-start justify-between mb-5 gap-4">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">Your Course History</h2>
-          <p className="text-slate-500 text-sm mt-1">Upload a transcript or add courses manually. Grade C or above counts toward your degree.</p>
+          <p className="text-slate-500 text-sm mt-1">
+            {student.classification === "frosh1"
+              ? "We've pre-filled your recommended first-semester courses. Edit or remove any that don't apply."
+              : "Upload a transcript or add courses manually. Grade C or above counts toward your degree."}
+          </p>
         </div>
       </div>
+
+      {/* Freshman 1st-sem notice */}
+      {student.classification === "frosh1" && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-5 rounded-2xl bg-maroon-50 border border-maroon-200 px-4 py-3 flex gap-3"
+        >
+          <span className="text-lg">🌱</span>
+          <div>
+            <p className="text-sm font-semibold text-maroon-800">Welcome, freshman!</p>
+            <p className="text-xs text-maroon-600 mt-0.5">
+              Your standard first-semester courses are pre-loaded below. Remove any you&apos;re not
+              taking and add extras if your advisor placed you differently.
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* ── Dropzone ── */}
       <motion.div
