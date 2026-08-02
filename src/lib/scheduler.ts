@@ -115,6 +115,9 @@ function buildQueue(student: StudentData): string[] {
     if (!alreadyHave.has(code) && !needed.includes(code)) needed.push(code);
   };
 
+  // Calculus and physics sequences front-loaded: MTH 126 gates MTH 237, MTH 453,
+  // PHY 214, CS 425, CS 430 — it must reach Pass 1 before CS courses fill HIGH_CAP.
+  ["MTH 125", "MTH 126", "PHY 213", "PHY 214"].forEach(addIfMissing);
   CS_MAJOR_REQUIRED.forEach(addIfMissing);
   CONCENTRATION_COURSES[student.concentration].forEach(addIfMissing);
   CORE_CMP.forEach(addIfMissing);
