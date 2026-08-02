@@ -187,13 +187,22 @@ export const CS_MAJOR_REQUIRED: string[] = [
 export const CONCENTRATION_COURSES: Record<Concentration, string[]> = {
   CYB: ["CS 381", "CS 384", "CS 488", "CS 321", "CS 386", "CS 414", "CS 421"],
   AI:  ["CS 381", "CS 384", "CS 488", "CS 389", "CS 409", "CS 430", "CS 450"],
-  GCS: ["CS 381", "CS 384", "CS 488"],
+  // 3 required + 4 program electives (2 at 300-level, 2 at 400-level per bulletin)
+  GCS: ["CS 381", "CS 384", "CS 488", "CS 303", "CS 304", "CS 440", "CS 485"],
 };
 
 export const CORE_CMP: string[] = ["MTH 237", "MTH 453"];
 
 // Program electives (can be satisfied by transfer)
 export const PROGRAM_ELECTIVES: string[] = ["MTH 111", "MTH 227"];
+
+// Free electives added to all plans — bridges the ~8-credit gap to reach 125 total
+// (All concentrations land at ~117 cr before these; 3 × 3cr = 9cr closes the gap)
+export const FREE_ELECTIVES: string[] = [
+  "CS 330",  // Computers in Society   (3 cr, prereq: CS 104)
+  "CS 311",  // Intro to Simulation    (3 cr, prereq: CS 215)
+  "CS 484",  // Internship             (3 cr, prereq: CS 314)
+];
 
 // Fixed GenEd (always required)
 export const GENED_FIXED: string[] = [

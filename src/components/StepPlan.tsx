@@ -1,11 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { COURSES, CREDIT_MAX, EXPECTED_SEMESTERS, type StudentData } from "@/lib/data";
 import { buildSchedule, type ScheduledSemester } from "@/lib/scheduler";
 import AnimatedNumber from "@/components/ui/AnimatedNumber";
 import AdvisorReport from "@/components/AdvisorReport";
+
+interface CourseInfo {
+  title: string;
+  description: string;
+  credits: number;
+  prereqs: string;
+}
 
 interface Props {
   student: StudentData;
@@ -30,6 +37,23 @@ export default function StepPlan({ student, onStudentChange, onBack }: Props) {
     }
     return buildSchedule(student);
   }, [student]);
+
+  // Enrich course cards with descriptions from Pinecone RAG database
+  const [ragInfo, setRagInfo] = useState<Record<string, CourseInfo>>({});
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
+
+  useEffect(() => {
+    const allCodes = result.semesters.flatMap((s) => s.courses);
+    if (allCodes.length === 0) return;
+    fetch("/api/course-info", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ courseCodes: allCodes }),
+    })
+      .then((r) => r.json())
+      .then((data) => { if (data.descriptions) setRagInfo(data.descriptions); })
+      .catch(() => {}); // non-fatal — plan works without enrichment
+  }, [result]);
 
   return (
     <div>
@@ -215,14 +239,42 @@ export default function StepPlan({ student, onStudentChange, onBack }: Props) {
                     {sem.courses.map((code) => {
                       const course = COURSES[code];
                       const isRetake = sem.retakes.includes(code);
+                      const rag = ragInfo[code];
+                      const isOpen = expandedCourse === code;
                       return (
-                        <div key={code} className="flex items-center justify-between px-4 py-2.5">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className="font-mono text-xs text-slate-400 w-14 shrink-0">{code}</span>
-                            <span className="text-sm text-slate-700 truncate">{course?.title ?? code}</span>
-                            {isRetake && <span className="text-xs bg-red-50 text-red-600 border border-red-100 rounded-md px-1.5 py-0.5 font-medium shrink-0">Retake</span>}
-                          </div>
-                          <span className="text-xs text-slate-400 shrink-0">{course?.credits ?? 3} cr</span>
+                        <div key={code}>
+                          <button
+                            onClick={() => setExpandedCourse(isOpen ? null : code)}
+                            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-slate-50/60 transition-colors text-left"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="font-mono text-xs text-slate-400 w-14 shrink-0">{code}</span>
+                              <span className="text-sm text-slate-700 truncate">{course?.title ?? rag?.title ?? code}</span>
+                              {isRetake && <span className="text-xs bg-red-50 text-red-600 border border-red-100 rounded-md px-1.5 py-0.5 font-medium shrink-0">Retake</span>}
+                              {rag && <span className="text-[10px] bg-maroon-50 text-maroon-500 border border-maroon-100 rounded-md px-1.5 py-0.5 font-medium shrink-0">RAG</span>}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-xs text-slate-400">{course?.credits ?? rag?.credits ?? 3} cr</span>
+                              {rag && <span className="text-slate-300 text-xs">{isOpen ? "▲" : "▼"}</span>}
+                            </div>
+                          </button>
+                          {isOpen && rag && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="px-4 pb-3 bg-slate-50/50 border-t border-slate-100"
+                            >
+                              {rag.description && (
+                                <p className="text-xs text-slate-600 mt-2 leading-relaxed">{rag.description}</p>
+                              )}
+                              {rag.prereqs && rag.prereqs !== "None" && (
+                                <p className="text-xs text-slate-400 mt-1.5">
+                                  <span className="font-medium text-slate-500">Prerequisites:</span> {rag.prereqs}
+                                </p>
+                              )}
+                            </motion.div>
+                          )}
                         </div>
                       );
                     })}

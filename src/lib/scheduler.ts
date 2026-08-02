@@ -1,6 +1,6 @@
 import {
   COURSES, CS_MAJOR_REQUIRED, CONCENTRATION_COURSES, CORE_CMP,
-  PROGRAM_ELECTIVES, GENED_FIXED, GENED_GROUPS,
+  PROGRAM_ELECTIVES, GENED_FIXED, GENED_GROUPS, FREE_ELECTIVES,
   TOTAL_CREDITS_REQUIRED, CREDIT_MIN, CREDIT_MAX,
   EXPECTED_SEMESTERS,
   gradeIsPassing, gradeIsRegistered,
@@ -124,6 +124,10 @@ function buildQueue(student: StudentData): string[] {
     const chosenOption = partialOption ?? group.options[0];
     chosenOption.forEach(addIfMissing);
   }
+
+  // Free electives — fill the gap to 125 total credits
+  // Only add courses whose prereqs exist in the COURSES dict
+  FREE_ELECTIVES.forEach(addIfMissing);
 
   return needed;
 }
