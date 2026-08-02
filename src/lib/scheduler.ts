@@ -257,23 +257,31 @@ export function buildSchedule(
       return true;
     };
 
-    // Pass 1: fill ~2/3 of target with high-priority CS/math
+    const isCSCourse = (code: string) => code.startsWith("CS ");
+    const CS_PER_SEM_CAP = 3;
+    let csAdded = 0;
+
+    // Pass 1: fill ~2/3 of target with high-priority math/physics/CS (max 3 CS)
     const HIGH_CAP = Math.round(semTarget * 0.67);
     for (const code of highPriority) {
       if (semCredits >= HIGH_CAP) break;
-      tryAdd(code);
+      if (isCSCourse(code) && csAdded >= CS_PER_SEM_CAP) continue;
+      if (tryAdd(code) && isCSCourse(code)) csAdded++;
     }
 
-    // Pass 2: fill to semTarget with gen-ed
+    // Pass 2: fill to semTarget with gen-ed (CS cap still applies)
     for (const code of genEdFiller) {
       if (semCredits >= semTarget) break;
-      tryAdd(code);
+      if (isCSCourse(code) && csAdded >= CS_PER_SEM_CAP) continue;
+      if (tryAdd(code) && isCSCourse(code)) csAdded++;
     }
 
-    // Pass 3: fill remainder with more high-priority if still under target
+    // Pass 3: fill remainder with more high-priority if still under target (CS cap applies)
     for (const code of highPriority) {
       if (semCredits >= semTarget) break;
-      if (!semCourses.includes(code)) tryAdd(code);
+      if (semCourses.includes(code)) continue;
+      if (isCSCourse(code) && csAdded >= CS_PER_SEM_CAP) continue;
+      if (tryAdd(code) && isCSCourse(code)) csAdded++;
     }
 
     // Pass 4: if still under minimum, use anything available
@@ -292,11 +300,13 @@ export function buildSchedule(
 
       for (const filler of fillers) {
         if (semCredits >= CREDIT_MIN) break;
+        if (isCSCourse(filler) && csAdded >= CS_PER_SEM_CAP) continue;
         const cr = COURSES[filler]?.credits ?? 3;
         if (semCredits + cr <= CREDIT_MAX) {
           semCourses.push(filler);
           semCredits += cr;
           semFillers.push(filler);
+          if (isCSCourse(filler)) csAdded++;
         }
       }
 

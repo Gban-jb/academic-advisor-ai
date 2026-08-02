@@ -184,6 +184,7 @@ export const COURSES: Record<string, Course> = {
 export const CS_MAJOR_REQUIRED: string[] = [
   "CS 102", "CS 104", "CS 109", "CS 203", "CS 206", "CS 209",
   "CS 215", "CS 314", "CS 401", "CS 403", "CS 405", "CS 410", "CS 425",
+  "CS 484",
 ];
 
 export const CONCENTRATION_COURSES: Record<Concentration, string[]> = {
@@ -198,13 +199,9 @@ export const CORE_CMP: string[] = ["MTH 237", "MTH 453"];
 // Program electives (can be satisfied by transfer)
 export const PROGRAM_ELECTIVES: string[] = ["MTH 111", "MTH 227"];
 
-// Free electives added to all plans — bridges the ~8-credit gap to reach 125 total
-// (All concentrations land at ~117 cr before these; 3 × 3cr = 9cr closes the gap)
-export const FREE_ELECTIVES: string[] = [
-  "CS 330",  // Computers in Society   (3 cr, prereq: CS 104)
-  "CS 311",  // Intro to Simulation    (3 cr, prereq: CS 215)
-  "CS 484",  // Internship             (3 cr, prereq: CS 314)
-];
+// Free electives — CS 330 and CS 311 live only in FILLER_POOL (used to hit 12-cr min
+// per semester); CS 484 moved to CS_MAJOR_REQUIRED. Keeping this array for future use.
+export const FREE_ELECTIVES: string[] = [];
 
 // Fixed GenEd (always required)
 export const GENED_FIXED: string[] = [
@@ -276,14 +273,15 @@ export const FILLER_POOL: string[] = [
 // ─── Empty starting student ──────────────────────────────────────────────────
 // The planner begins blank — students upload a transcript or add courses manually.
 
-// Standard first-semester courses for an incoming freshman (all have no prereqs)
+// Standard first-semester courses for an incoming freshman (all have no prereqs).
+// PHY 213 is NOT here — it requires completed MTH 125, so it belongs in sem 2.
 export const YEAR1_SEM1_COURSES: TranscriptEntry[] = [
   { code: "CS 102",  grade: "REG", credits: 3 },
   { code: "ENG 101", grade: "REG", credits: 3 },
   { code: "MTH 125", grade: "REG", credits: 4 },
   { code: "ORI 101", grade: "REG", credits: 1 },
-  { code: "PHY 213", grade: "REG", credits: 4 },
-]; // 15 credits total
+  { code: "HED 101", grade: "REG", credits: 2 },
+]; // 13 credits total
 
 export const EMPTY_STUDENT: StudentData = {
   name: "",
