@@ -190,7 +190,10 @@ export function buildSchedule(
     (s, c) => s + (COURSES[c]?.credits ?? 3), 0
   );
   const remainingCreditsTotal = TOTAL_CREDITS_REQUIRED - alreadyDoneCredits;
-  const minTargetForTimeline = Math.ceil(remainingCreditsTotal / Math.max(1, expectedSems));
+  // sem1 (pre-registered) already occupies one expected slot; remaining courses
+  // must fit in the future semesters only.
+  const futureSemCount = Math.max(1, expectedSems - (sem1Courses.length > 0 ? 1 : 0));
+  const minTargetForTimeline = Math.ceil(remainingCreditsTotal / futureSemCount);
   const neededTarget = Math.min(minTargetForTimeline, CREDIT_MAX);
   const creditTargetOverridden = rawTarget < neededTarget;
   const baseTarget = creditTargetOverridden ? neededTarget : rawTarget;
