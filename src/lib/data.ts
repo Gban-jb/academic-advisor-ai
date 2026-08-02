@@ -63,7 +63,9 @@ export interface StudentData {
   transcript: TranscriptEntry[];
   classification: Classification;
   creditTarget: 12 | 15 | 18;
-  earlyGraduation?: boolean; // undefined = not yet decided
+  earlyGraduation?: boolean;           // undefined = not yet decided
+  interestCourses?: string[];          // user-selected electives for filler padding
+  extensionCreditTarget?: 12 | 15 | 18; // credits per extension semester (spread-out mode, default 12)
 }
 
 // Normalize course code: "CS102" → "CS 102"
@@ -257,6 +259,19 @@ export const MIN_RESIDENCE_CREDITS = 20;
 export const CREDIT_MIN = 12;
 export const CREDIT_TARGET = 15;
 export const CREDIT_MAX = 18;
+
+// Courses eligible as filler to pad short semesters to ≥ 12 credits.
+// Ordered: culturally enriching first, CS electives last.
+// buildFillerPool() in scheduler.ts filters this against completed + remaining.
+export const FILLER_POOL: string[] = [
+  "MUS 101", "ART 101", "COMM 101", "PHL 201", "PHL 203",
+  "SPA 101", "FRE 101",
+  "PSY 201", "SOC 201", "SOC 210", "GEO 213", "UPL 103",
+  "HIS 101", "HIS 102", "HIS 201", "HIS 202",
+  "ENG 201", "ENG 202", "ENG 203", "ENG 204", "ENG 207", "ENG 208",
+  "ECO 230",
+  "CS 304", "CS 320", "CS 330", "CS 311", "CS 315", "CS 328", "CS 435",
+];
 
 // ─── Empty starting student ──────────────────────────────────────────────────
 // The planner begins blank — students upload a transcript or add courses manually.
