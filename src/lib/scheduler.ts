@@ -258,21 +258,31 @@ export function buildSchedule(
     };
 
     const isCSCourse = (code: string) => code.startsWith("CS ");
-    const CS_PER_SEM_CAP = 3;
+    // Preferred cap is 3, but raise it automatically so all CS courses fit within
+    // the student's remaining semesters — never delay graduation for the cap.
+    const CS_PREFERRED_CAP = 3;
+    const allCSRemaining = remaining.filter(c => isCSCourse(c)).length;
+    const semsScheduledSoFar = semIndex - firstFutureSemIdx;
+    const semsLeft = Math.max(1, futureSemCount - semsScheduledSoFar);
+    const dynamicCSCap = Math.max(CS_PREFERRED_CAP, Math.ceil(allCSRemaining / semsLeft));
     let csAdded = 0;
 
-    // Pass 1: fill ~2/3 of target with high-priority math/physics/CS (max 3 CS)
+    // When behind schedule, raise the high-priority threshold to semTarget so
+    // required courses fill first and gen-ed takes whatever space is left.
     const HIGH_CAP = Math.round(semTarget * 0.67);
+    const effectiveHighCap = dynamicCSCap > CS_PREFERRED_CAP ? semTarget : HIGH_CAP;
+
+    // Pass 1: fill with high-priority math/physics/CS up to effectiveHighCap
     for (const code of highPriority) {
-      if (semCredits >= HIGH_CAP) break;
-      if (isCSCourse(code) && csAdded >= CS_PER_SEM_CAP) continue;
+      if (semCredits >= effectiveHighCap) break;
+      if (isCSCourse(code) && csAdded >= dynamicCSCap) continue;
       if (tryAdd(code) && isCSCourse(code)) csAdded++;
     }
 
     // Pass 2: fill to semTarget with gen-ed (CS cap still applies)
     for (const code of genEdFiller) {
       if (semCredits >= semTarget) break;
-      if (isCSCourse(code) && csAdded >= CS_PER_SEM_CAP) continue;
+      if (isCSCourse(code) && csAdded >= dynamicCSCap) continue;
       if (tryAdd(code) && isCSCourse(code)) csAdded++;
     }
 
@@ -280,7 +290,7 @@ export function buildSchedule(
     for (const code of highPriority) {
       if (semCredits >= semTarget) break;
       if (semCourses.includes(code)) continue;
-      if (isCSCourse(code) && csAdded >= CS_PER_SEM_CAP) continue;
+      if (isCSCourse(code) && csAdded >= dynamicCSCap) continue;
       if (tryAdd(code) && isCSCourse(code)) csAdded++;
     }
 
@@ -300,7 +310,7 @@ export function buildSchedule(
 
       for (const filler of fillers) {
         if (semCredits >= CREDIT_MIN) break;
-        if (isCSCourse(filler) && csAdded >= CS_PER_SEM_CAP) continue;
+        if (isCSCourse(filler) && csAdded >= dynamicCSCap) continue;
         const cr = COURSES[filler]?.credits ?? 3;
         if (semCredits + cr <= CREDIT_MAX) {
           semCourses.push(filler);
