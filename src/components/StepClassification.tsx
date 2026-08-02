@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { type StudentData, type Classification, CLASSIFICATION_LABELS, EXPECTED_SEMESTERS } from "@/lib/data";
+import { type StudentData, type Classification, EXPECTED_SEMESTERS } from "@/lib/data";
 
 interface Props {
   student: StudentData;
@@ -10,79 +10,67 @@ interface Props {
   onBack: () => void;
 }
 
-const YEAR_GROUPS: { year: string; options: Classification[] }[] = [
-  { year: "Freshman",  options: ["frosh1",  "frosh2"]  },
-  { year: "Sophomore", options: ["soph1",   "soph2"]   },
-  { year: "Junior",    options: ["junior1", "junior2"] },
-  { year: "Senior",    options: ["senior1", "senior2"] },
-];
-
-const YEAR_EMOJI: Record<string, string> = {
-  Freshman: "🌱", Sophomore: "⚡", Junior: "🔥", Senior: "🎯",
+// Map semester count → classification key
+const SEMS_TO_CLASSIFICATION: Record<number, Classification> = {
+  8: "frosh1", 7: "frosh2",
+  6: "soph1",  5: "soph2",
+  4: "junior1", 3: "junior2",
+  2: "senior1", 1: "senior2",
 };
 
 const CREDIT_OPTIONS: { value: 12 | 15 | 18; label: string; sub: string; chip: string }[] = [
-  { value: 12, label: "12 credits", sub: "Light load · manageable pace",      chip: "bg-blue-50 border-blue-200 text-blue-700"   },
-  { value: 15, label: "15 credits", sub: "Standard load · on-time graduation", chip: "bg-green-50 border-green-200 text-green-700" },
+  { value: 12, label: "12 credits", sub: "Light load · manageable pace",       chip: "bg-blue-50 border-blue-200 text-blue-700"    },
+  { value: 15, label: "15 credits", sub: "Standard load · on-time graduation", chip: "bg-green-50 border-green-200 text-green-700"  },
   { value: 18, label: "18 credits", sub: "Max load · fastest path",            chip: "bg-orange-50 border-orange-200 text-orange-700" },
 ];
 
 export default function StepClassification({ student, onChange, onNext, onBack }: Props) {
   const canContinue = !!student.classification && !!student.creditTarget;
 
+  const selectedSems = student.classification
+    ? EXPECTED_SEMESTERS[student.classification]
+    : null;
+
   return (
     <div>
-      <h2 className="text-xl font-semibold text-slate-900 mb-1">Where are you in your journey?</h2>
+      <h2 className="text-xl font-semibold text-slate-900 mb-1">
+        How many semesters do you have left?
+      </h2>
       <p className="text-slate-500 text-sm mb-6">
-        This tells us how many semesters you have left — including the one you're starting now.
+        Include the one you&apos;re starting now. A standard 4-year degree is 8 semesters total.
       </p>
 
-      {/* Classification cards grouped by year */}
-      <div className="mb-7 space-y-4">
-        {YEAR_GROUPS.map(({ year, options }, gi) => (
-          <div key={year}>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <span>{YEAR_EMOJI[year]}</span> {year}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {options.map((value, i) => {
-                const active = student.classification === value;
-                const semLabel = value.endsWith("1") ? "1st Semester" : "2nd Semester";
-                const sems = EXPECTED_SEMESTERS[value];
-                return (
-                  <motion.button
-                    key={value}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: (gi * 2 + i) * 0.04 }}
-                    onClick={() => onChange({ classification: value })}
-                    className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left transition-all ${
-                      active
-                        ? "border-maroon-600 bg-maroon-50 shadow-sm"
-                        : "border-slate-100 bg-white hover:border-maroon-200 hover:bg-maroon-50/40"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className={`font-semibold text-sm ${active ? "text-maroon-800" : "text-slate-700"}`}>
-                        {semLabel}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {sems} semester{sems !== 1 ? "s" : ""} to graduation
-                      </p>
-                    </div>
-                    {active && (
-                      <span className="h-5 w-5 rounded-full bg-maroon-600 flex items-center justify-center shrink-0">
-                        <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="currentColor">
-                          <path d="M10 3L5 8.5 2 5.5" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </span>
-                    )}
-                  </motion.button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+      {/* Semester count grid */}
+      <div className="mb-7">
+        <div className="grid grid-cols-4 gap-2">
+          {[8, 7, 6, 5, 4, 3, 2, 1].map((n, i) => {
+            const active = selectedSems === n;
+            return (
+              <motion.button
+                key={n}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                onClick={() => onChange({ classification: SEMS_TO_CLASSIFICATION[n] })}
+                className={`flex flex-col items-center justify-center rounded-2xl border-2 py-4 transition-all ${
+                  active
+                    ? "border-maroon-600 bg-maroon-50 shadow-sm"
+                    : "border-slate-100 bg-white hover:border-maroon-200 hover:bg-maroon-50/40"
+                }`}
+              >
+                <span className={`text-2xl font-bold ${active ? "text-maroon-700" : "text-slate-700"}`}>
+                  {n}
+                </span>
+                <span className="text-[10px] text-slate-400 mt-0.5">
+                  {n === 1 ? "semester" : "semesters"}
+                </span>
+                {active && (
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-maroon-600" />
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Credit load */}
