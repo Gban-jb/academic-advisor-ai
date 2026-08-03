@@ -10,9 +10,16 @@ function normalizeGrade(raw: string): Grade {
   const valid: Grade[] = [
     "A+","A","A-","B+","B","B-","C+","C","C-",
     "D+","D","D-","F","W","WF","I",
-    "TA","TB","TC","S","CR","P",
+    "TA","TB","TC","S","CR","P","REG",
   ];
   if (valid.includes(g as Grade)) return g as Grade;
+
+  // In-progress / registered courses
+  if (
+    g === "REG" || g === "REGISTERED" || g === "IN PROGRESS" ||
+    g === "IN_PROGRESS" || g === "INPROGRESS" || g === "IP" ||
+    g === "ENROLLED" || g === "CURRENT"
+  ) return "REG";
 
   // Common variants
   if (g.startsWith("TRANSFER") || g.startsWith("TR")) {
@@ -38,19 +45,20 @@ Extract every course listed and return ONLY a JSON array — no markdown, no exp
 
 Each object in the array must have exactly these fields:
 - "code": the course code (e.g. "CS 102", "MTH 125", "ENG 101", "MATH 211")
-- "grade": the grade received (e.g. "A", "B+", "C-", "D", "F", "W", "TA", "TB", "TC")
+- "grade": the grade received (e.g. "A", "B+", "C-", "D", "F", "W", "TA", "TB", "TC", "REG")
 - "credits": credit hours as a number (e.g. 3, 4, 1)
 - "term": semester and year as a string (e.g. "Fall 2025", "Spring 2026", "Fall 2024")
 
 Rules:
 - For transfer courses, use "TA" for A-range, "TB" for B-range, "TC" for C-range grades.
-- Include ALL courses that appear — passed, failed, withdrawn.
-- If a grade is missing or illegible, omit that course.
+- CRITICAL: For any course listed under a "Courses in Progress", "In Progress", or "Currently Enrolled" section — courses with NO grade yet — use grade "REG". These are courses the student is currently taking this semester. Do NOT skip them.
+- Include ALL courses that appear — passed, failed, withdrawn, and in-progress.
+- If a completed course has a grade that is missing or illegible, omit that course.
 - Do not invent courses that are not on the transcript.
 - Return ONLY the JSON array, starting with [ and ending with ].
 
 Example output:
-[{"code":"CS 102","grade":"A","credits":3,"term":"Fall 2025"},{"code":"MTH 125","grade":"B+","credits":4,"term":"Spring 2026"}]`;
+[{"code":"CS 102","grade":"A","credits":3,"term":"Fall 2025"},{"code":"MTH 125","grade":"B+","credits":4,"term":"Spring 2026"},{"code":"CS 314","grade":"REG","credits":3,"term":"Fall 2026"}]`;
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
