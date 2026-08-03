@@ -58,8 +58,14 @@ export default function StepEntry({ student, onChange, onNext }: Props) {
       if (extracted.length === 0) { setUploadError("No courses found. Try a clearer scan."); return; }
       const existing = new Set(student.transcript.map((e) => e.code));
       const fresh = extracted.filter((e) => !existing.has(e.code));
-      onChange({ ...student, transcript: [...student.transcript, ...fresh] });
-      setUploadSuccess(`Extracted ${extracted.length} courses · ${fresh.length} new added. Review below.`);
+      const extractedGpa = typeof data.gpa === "number" ? data.gpa : null;
+      onChange({
+        ...student,
+        transcript: [...student.transcript, ...fresh],
+        ...(extractedGpa !== null ? { gpa: extractedGpa } : {}),
+      });
+      const gpaMsg = extractedGpa !== null ? ` · GPA set to ${extractedGpa.toFixed(2)}` : "";
+      setUploadSuccess(`Extracted ${extracted.length} courses · ${fresh.length} new added${gpaMsg}. Review below.`);
     } catch (err) {
       setUploadError(`Network error: ${err}`);
     } finally {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AdvisorReport } from "@/lib/advisor-types";
 import type { StudentData } from "@/lib/data";
 
@@ -25,6 +25,8 @@ const CONC_LABELS: Record<string, string> = {
 
 export default function ReportPrintPage() {
   const [data, setData] = useState<StoredReport | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -36,16 +38,50 @@ export default function ReportPrintPage() {
   }, []);
 
   useEffect(() => {
-    if (data) {
-      const t = setTimeout(() => window.print(), 600);
+    if (data && contentRef.current) {
+      const t = setTimeout(() => downloadPDF(), 800);
       return () => clearTimeout(t);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
+
+  async function downloadPDF() {
+    if (!contentRef.current || downloading) return;
+    setDownloading(true);
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      const studentName = data?.student?.name || "Student";
+      await html2pdf()
+        .set({
+          margin: [0.5, 0.5, 0.5, 0.5],
+          filename: `AAMU-Advising-Report-${studentName}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+        })
+        .from(contentRef.current)
+        .save();
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   if (!data) {
     return (
       <div className="flex items-center justify-center min-h-screen text-slate-400 text-sm">
         Loading report…
+      </div>
+    );
+  }
+
+  if (downloading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+        <div className="animate-spin h-8 w-8 border-4 border-maroon-600 border-t-transparent rounded-full" />
+        <p className="text-slate-600 font-medium">Generating your PDF…</p>
+        <p className="text-slate-400 text-sm">It will download automatically</p>
       </div>
     );
   }
@@ -59,6 +95,7 @@ export default function ReportPrintPage() {
 
   return (
     <>
+      <div ref={contentRef}>
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: "Georgia", serif; font-size: 11pt; color: #1e293b; background: white; }
@@ -349,13 +386,22 @@ export default function ReportPrintPage() {
         </div>
       </div>
 
-      {/* Print button (hidden on print) */}
+      </div>{/* end contentRef div */}
+
+      {/* Action buttons (hidden on print) */}
       <div className="no-print" style={{ position: "fixed", bottom: "20px", right: "20px", display: "flex", gap: "8px" }}>
         <button
-          onClick={() => window.print()}
-          style={{ background: "#7c1530", color: "white", border: "none", borderRadius: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: 600, cursor: "pointer" }}
+          onClick={downloadPDF}
+          disabled={downloading}
+          style={{ background: "#7c1530", color: "white", border: "none", borderRadius: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: 600, cursor: "pointer", opacity: downloading ? 0.6 : 1 }}
         >
-          Print / Save PDF
+          {downloading ? "Generating…" : "Download PDF"}
+        </button>
+        <button
+          onClick={() => window.print()}
+          style={{ background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "10px 16px", fontSize: "14px", cursor: "pointer" }}
+        >
+          Print
         </button>
         <button
           onClick={() => window.close()}

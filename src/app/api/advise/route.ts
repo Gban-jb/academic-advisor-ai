@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateText, generateObject, tool, isStepCount } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
-import { COURSES, CS_MAJOR_REQUIRED, CONCENTRATION_COURSES, type StudentData, type Concentration } from "@/lib/data";
-import { prereqsMet, getDoneSet, getRegisteredSet } from "@/lib/scheduler";
+import { COURSES, CS_MAJOR_REQUIRED, CONCENTRATION_COURSES, GENED_FIXED, GENED_GROUPS, CORE_CMP, type StudentData, type Concentration } from "@/lib/data";
+import { prereqsMet, getDoneSet, getRegisteredSet, type ScheduleResult, type ScheduledSemester } from "@/lib/scheduler";
 import { computeAdvisorFacts, buildAdvisorSystemPrompt } from "@/lib/advisor-engine";
-import { AdvisorReportSchema } from "@/lib/advisor-types";
+import { AdvisorReportSchema, type AdvisorReport } from "@/lib/advisor-types";
 
 const CONC_NAMES: Record<Concentration, string> = {
   CYB: "Cybersecurity",
@@ -208,6 +208,80 @@ function makeTools(student: StudentData) {
   };
 }
 
+// ── Deterministic roadmap builder (mirrors scheduler output → advisor schema) ──
+
+function getCourseType(
+  code: string,
+  concentration: Concentration
+): "core" | "concentration" | "gen_ed" | "math" | "elective" {
+  if (CS_MAJOR_REQUIRED.includes(code) || CORE_CMP.includes(code)) return "core";
+  if (CONCENTRATION_COURSES[concentration].includes(code)) return "concentration";
+  if (code.startsWith("MTH") || code.startsWith("PHY")) return "math";
+  const isGenEd =
+    GENED_FIXED.includes(code) ||
+    GENED_GROUPS.some((g) => g.options.some((opt) => opt.includes(code)));
+  if (isGenEd) return "gen_ed";
+  return "elective";
+}
+
+function getCourseReason(code: string, concentration: Concentration, sem: ScheduledSemester): string {
+  if (sem.retakes.includes(code)) return "Retake — previously not passed; must complete for degree.";
+  if (sem.fillerCourses.includes(code)) return "Elective added to meet the 12-credit full-time minimum.";
+  if (CS_MAJOR_REQUIRED.includes(code) || CORE_CMP.includes(code)) return "Required CS core course for degree completion.";
+  if (CONCENTRATION_COURSES[concentration].includes(code)) return `${concentration} concentration requirement.`;
+  if (code.startsWith("MTH") || code.startsWith("PHY")) return "Math/science sequence required for advanced CS courses.";
+  return "General education or elective requirement.";
+}
+
+function buildRoadmapFromSchedule(
+  semesters: ScheduledSemester[],
+  concentration: Concentration
+): AdvisorReport["fullRoadmap"] {
+  return semesters.map((sem, i) => ({
+    semesterLabel: sem.label,
+    semesterNumber: i + 1,
+    courses: sem.courses.map((code) => {
+      const course = COURSES[code];
+      return {
+        code,
+        name: course?.title ?? code,
+        credits: course?.credits ?? 3,
+        type: getCourseType(code, concentration),
+      };
+    }),
+    totalCredits: sem.totalCredits,
+    notes: sem.warnings.join(" ") || (sem.isExtension ? "Extension semester — electives to maintain full-time status." : ""),
+  }));
+}
+
+function buildNextSemPlan(
+  semesters: ScheduledSemester[],
+  concentration: Concentration,
+  haveSet: Set<string>
+): AdvisorReport["nextSemesterPlan"] {
+  const targetSem = semesters[0];
+  if (!targetSem) return [];
+  return targetSem.courses.map((code) => {
+    const course = COURSES[code];
+    const type = getCourseType(code, concentration);
+    return {
+      code,
+      name: course?.title ?? code,
+      credits: course?.credits ?? 3,
+      priority:
+        type === "core"
+          ? "required"
+          : type === "concentration"
+          ? "concentration"
+          : type === "math"
+          ? "math"
+          : "recommended",
+      reason: getCourseReason(code, concentration, targetSem),
+      prerequisitesMet: prereqsMet(code, haveSet),
+    };
+  });
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -217,9 +291,11 @@ export async function POST(req: NextRequest) {
   }
 
   let student: StudentData;
+  let scheduleResult: ScheduleResult | null = null;
   try {
     const body = await req.json();
     student = body.student;
+    scheduleResult = body.scheduleResult ?? null;
     if (!student?.transcript) throw new Error("Missing student.transcript");
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
@@ -270,13 +346,23 @@ Step 4: Spot-check prerequisites for any flagged concern courses.`,
   }
 
   // ── Step 4: Structured report generation ──────────────────────────────────
+  const scheduleContext =
+    scheduleResult && scheduleResult.semesters.length > 0
+      ? `\n\nIMPORTANT — The student's planner has already computed the exact schedule. Use it as the authoritative reference:\n${scheduleResult.semesters
+          .map(
+            (sem, i) =>
+              `Semester ${i + 1} (${sem.label}): ${sem.courses.join(", ")} [${sem.totalCredits} cr]`
+          )
+          .join("\n")}`
+      : "";
+
   const { object: report } = await generateObject({
     model: openai("gpt-4o-mini"),
     system: systemPrompt,
     prompt: `Generate the complete advising report for ${student.name || "this student"}.
 
 Additional analysis from tool calls:
-${toolSummary || "(No tool results — use pre-computed facts from system prompt only)"}
+${toolSummary || "(No tool results — use pre-computed facts from system prompt only)"}${scheduleContext}
 
 Rules reminder:
 - nextSemesterPlan total credits: 12-18
@@ -286,5 +372,22 @@ Rules reminder:
     schema: AdvisorReportSchema,
   });
 
-  return NextResponse.json({ report, facts });
+  // Override nextSemesterPlan and fullRoadmap with the deterministic scheduler output
+  // so the AI report always matches the planner on screen.
+  const haveSet = new Set([
+    ...Array.from(getDoneSet(student.transcript)),
+    ...Array.from(getRegisteredSet(student.transcript)),
+  ]);
+
+  const finalReport: AdvisorReport = {
+    ...report,
+    ...(scheduleResult && scheduleResult.semesters.length > 0
+      ? {
+          nextSemesterPlan: buildNextSemPlan(scheduleResult.semesters, student.concentration, haveSet),
+          fullRoadmap: buildRoadmapFromSchedule(scheduleResult.semesters, student.concentration),
+        }
+      : {}),
+  };
+
+  return NextResponse.json({ report: finalReport, facts });
 }

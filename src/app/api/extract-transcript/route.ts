@@ -41,24 +41,29 @@ function normalizeGrade(raw: string): Grade {
 }
 
 const PROMPT = `You are reading a college academic transcript.
-Extract every course listed and return ONLY a JSON array — no markdown, no explanation, nothing else.
+Extract the cumulative GPA and every course listed. Return ONLY a JSON object — no markdown, no explanation, nothing else.
 
-Each object in the array must have exactly these fields:
+The JSON object must have exactly these top-level fields:
+- "gpa": the latest cumulative (overall) GPA as a number (e.g. 3.45). If not found, use null.
+- "courses": an array of course objects
+
+Each course object must have exactly these fields:
 - "code": the course code (e.g. "CS 102", "MTH 125", "ENG 101", "MATH 211")
 - "grade": the grade received (e.g. "A", "B+", "C-", "D", "F", "W", "TA", "TB", "TC", "REG")
 - "credits": credit hours as a number (e.g. 3, 4, 1)
 - "term": semester and year as a string (e.g. "Fall 2025", "Spring 2026", "Fall 2024")
 
 Rules:
+- For GPA: look for "Cumulative GPA", "Overall GPA", or "Cum GPA". Always use the LATEST/MOST RECENT value.
 - For transfer courses, use "TA" for A-range, "TB" for B-range, "TC" for C-range grades.
 - CRITICAL: For any course listed under a "Courses in Progress", "In Progress", or "Currently Enrolled" section — courses with NO grade yet — use grade "REG". These are courses the student is currently taking this semester. Do NOT skip them.
 - Include ALL courses that appear — passed, failed, withdrawn, and in-progress.
 - If a completed course has a grade that is missing or illegible, omit that course.
 - Do not invent courses that are not on the transcript.
-- Return ONLY the JSON array, starting with [ and ending with ].
+- Return ONLY the JSON object, starting with { and ending with }.
 
 Example output:
-[{"code":"CS 102","grade":"A","credits":3,"term":"Fall 2025"},{"code":"MTH 125","grade":"B+","credits":4,"term":"Spring 2026"},{"code":"CS 314","grade":"REG","credits":3,"term":"Fall 2026"}]`;
+{"gpa":3.45,"courses":[{"code":"CS 102","grade":"A","credits":3,"term":"Fall 2025"},{"code":"MTH 125","grade":"B+","credits":4,"term":"Spring 2026"},{"code":"CS 314","grade":"REG","credits":3,"term":"Fall 2026"}]}`;
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -120,15 +125,22 @@ export async function POST(req: NextRequest) {
   // Strip markdown fences if present
   raw = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
 
-  let parsed: { code: string; grade: string; credits: number; term?: string }[];
+  let parsedObj: { gpa?: number | null; courses: { code: string; grade: string; credits: number; term?: string }[] };
   try {
-    parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) throw new Error("Not an array");
+    const parsed = JSON.parse(raw);
+    // Support both the new { gpa, courses } format and the legacy plain array
+    if (Array.isArray(parsed)) {
+      parsedObj = { gpa: null, courses: parsed };
+    } else if (parsed && Array.isArray(parsed.courses)) {
+      parsedObj = parsed;
+    } else {
+      throw new Error("Unexpected format");
+    }
   } catch {
     return NextResponse.json({ error: "Could not parse AI response. Try a clearer scan.", raw }, { status: 500 });
   }
 
-  const courses = parsed
+  const courses = parsedObj.courses
     .filter((c) => c.code && c.grade)
     .map((c) => ({
       code: norm(c.code),
@@ -137,5 +149,10 @@ export async function POST(req: NextRequest) {
       term: c.term ?? undefined,
     }));
 
-  return NextResponse.json({ courses });
+  const gpa =
+    typeof parsedObj.gpa === "number" && parsedObj.gpa > 0 && parsedObj.gpa <= 4.0
+      ? Math.round(parsedObj.gpa * 100) / 100
+      : null;
+
+  return NextResponse.json({ courses, gpa });
 }
