@@ -7,9 +7,10 @@ import {
   gradeIsPassing, gradeIsRegistered,
   type StudentData,
 } from "@/lib/data";
-import { buildSchedule, type ScheduledSemester } from "@/lib/scheduler";
+import { buildSchedule, type ScheduledSemester, type ScheduleResult } from "@/lib/scheduler";
 import AnimatedNumber from "@/components/ui/AnimatedNumber";
 import AdvisorReport from "@/components/AdvisorReport";
+import ChatBot from "@/components/ChatBot";
 
 interface CourseInfo {
   title: string;
@@ -43,7 +44,7 @@ const FILLER_GROUPS = [
 ];
 
 export default function StepPlan({ student, onStudentChange, onBack }: Props) {
-  const result = useMemo(() => {
+  const computed = useMemo<ScheduleResult>(() => {
     if (student.earlyGraduation === false) {
       return buildSchedule(student, {
         overrideSemesters: EXPECTED_SEMESTERS[student.classification],
@@ -51,6 +52,15 @@ export default function StepPlan({ student, onStudentChange, onBack }: Props) {
     }
     return buildSchedule(student);
   }, [student]);
+
+  // chatOverride lets the chatbot replace semesters without touching the student object
+  const [chatOverride, setChatOverride] = useState<ScheduledSemester[] | null>(null);
+  // Reset chatbot changes whenever the base schedule is recomputed
+  useEffect(() => { setChatOverride(null); }, [computed]);
+
+  const result: ScheduleResult = chatOverride
+    ? { ...computed, semesters: chatOverride }
+    : computed;
 
   // RAG course description enrichment
   const [ragInfo, setRagInfo] = useState<Record<string, CourseInfo>>({});
@@ -530,6 +540,13 @@ export default function StepPlan({ student, onStudentChange, onBack }: Props) {
           ← Back
         </button>
       </div>
+
+      {/* AI Chatbot — floats in bottom-right, can edit the schedule live */}
+      <ChatBot
+        student={student}
+        semesters={result.semesters}
+        onScheduleChange={setChatOverride}
+      />
     </div>
   );
 }
