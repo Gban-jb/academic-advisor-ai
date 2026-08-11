@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Resend from "next-auth/providers/resend";
 import PostgresAdapter from "@auth/pg-adapter";
-import { Pool } from "pg";
+import { Pool } from "@neondatabase/serverless";
 import { authConfig } from "@/auth.config";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -13,7 +13,8 @@ const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS ?? "")
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  adapter: PostgresAdapter(pool),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  adapter: PostgresAdapter(pool as any),
   session: { strategy: "jwt" },
   providers: [
     Resend({
