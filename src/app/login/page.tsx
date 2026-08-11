@@ -1,23 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 function LoginForm() {
   const params = useSearchParams();
-  const step = params.get("step");
-  const hasError = params.get("error");
+  const errorParam = params.get("error");
 
-  const [email, setEmail]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [sent, setSent]         = useState(step === "check-email");
-  const [error, setError]       = useState(hasError ? "Access denied. This email is not authorized." : "");
-
-  useEffect(() => {
-    if (step === "check-email") setSent(true);
-  }, [step]);
+  const [email, setEmail]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent]       = useState(false);
+  const [error, setError]     = useState(
+    errorParam === "expired" ? "That link has expired. Please request a new one." :
+    errorParam === "missing" ? "Invalid sign-in link." : ""
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,18 +23,27 @@ function LoginForm() {
     setLoading(true);
     setError("");
 
-    const res = await signIn("resend", {
-      email: email.trim().toLowerCase(),
-      redirect: false,
-      callbackUrl: "/",
-    });
+    try {
+      const res = await fetch("/api/magic-link/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const data = await res.json();
 
-    setLoading(false);
-
-    if (res?.error) {
-      setError(`Error: ${res.error} — check that your email is on the allowlist.`);
-    } else if (res?.ok) {
-      setSent(true);
+      if (!res.ok) {
+        if (data.error === "NotAllowed") {
+          setError("This email is not authorized to access this app.");
+        } else {
+          setError("Something went wrong. Please try again.");
+        }
+      } else {
+        setSent(true);
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -58,7 +64,6 @@ function LoginForm() {
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
 
         {sent ? (
-          /* ── Check your email state ── */
           <div className="p-8 text-center">
             <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-green-50 border border-green-100 mb-4">
               <svg className="h-7 w-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -67,8 +72,8 @@ function LoginForm() {
             </div>
             <h2 className="text-lg font-semibold text-slate-800 mb-2">Check your email</h2>
             <p className="text-sm text-slate-500 leading-relaxed mb-6">
-              We sent a sign-in link to <strong className="text-slate-700">{email || "your email"}</strong>.<br />
-              Click the link in that email to sign in.
+              We sent a sign-in link to <strong className="text-slate-700">{email}</strong>.<br />
+              Click the link to sign in — it expires in 15 minutes.
             </p>
             <p className="text-xs text-slate-400">
               Didn&apos;t get it? Check spam, or{" "}
@@ -82,7 +87,6 @@ function LoginForm() {
             </p>
           </div>
         ) : (
-          /* ── Email form ── */
           <>
             <div className="px-8 pt-8 pb-2">
               <h2 className="text-lg font-semibold text-slate-800 mb-1">Sign in</h2>
@@ -121,7 +125,7 @@ function LoginForm() {
                 type="submit"
                 disabled={loading || !email.trim()}
                 className="w-full rounded-xl py-2.5 text-sm font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: loading ? "#9b7a7e" : "linear-gradient(135deg, #7B0D1E 0%, #5a0915 100%)" }}
+                style={{ background: "linear-gradient(135deg, #7B0D1E 0%, #5a0915 100%)" }}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">

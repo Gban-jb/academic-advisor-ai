@@ -4,8 +4,12 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // Let auth callbacks and login page through
-  if (path.startsWith("/api/auth") || path.startsWith("/login")) {
+  // Let auth routes and login page through
+  if (
+    path.startsWith("/api/auth") ||
+    path.startsWith("/api/magic-link") ||
+    path.startsWith("/login")
+  ) {
     return NextResponse.next();
   }
 
