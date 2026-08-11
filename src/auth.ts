@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Resend from "next-auth/providers/resend";
 import PostgresAdapter from "@auth/pg-adapter";
 import { Pool } from "pg";
+import { authConfig } from "@/auth.config";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
@@ -11,6 +12,7 @@ const ALLOWED_EMAILS = (process.env.ALLOWED_EMAILS ?? "")
   .filter(Boolean);
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PostgresAdapter(pool),
   session: { strategy: "jwt" },
   providers: [
@@ -21,6 +23,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    ...authConfig.callbacks,
     signIn({ user }) {
       if (!user.email) return false;
       if (ALLOWED_EMAILS.length === 0) return false;
@@ -34,10 +37,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.email) session.user.email = token.email as string;
       return session;
     },
-  },
-  pages: {
-    signIn: "/login",
-    verifyRequest: "/login?step=check-email",
-    error: "/login",
   },
 });
