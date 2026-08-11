@@ -35,7 +35,7 @@ function LoginForm() {
     setLoading(false);
 
     if (res?.error) {
-      setError("Access denied. This email is not authorized to use this app.");
+      setError(`Error: ${res.error} — check that your email is on the allowlist.`);
     } else if (res?.ok) {
       setSent(true);
     }
