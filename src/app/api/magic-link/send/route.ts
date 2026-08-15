@@ -2,17 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { SignJWT } from "jose";
 
 const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET ?? "");
-const ALLOWED = (process.env.ALLOWED_EMAILS ?? "")
-  .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
 const FROM = process.env.AUTH_EMAIL_FROM ?? "onboarding@resend.dev";
 const BASE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
+
+function isAllowed(email: string): boolean {
+  // Allow any Gmail address, or any email in the optional allowlist
+  if (email.endsWith("@gmail.com")) return true;
+  const extra = (process.env.ALLOWED_EMAILS ?? "")
+    .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return extra.length > 0 && extra.includes(email);
+}
 
 export async function POST(req: NextRequest) {
   const { email } = await req.json();
   const normalised = (email ?? "").trim().toLowerCase();
 
   if (!normalised) return NextResponse.json({ error: "Email required" }, { status: 400 });
-  if (!ALLOWED.includes(normalised))
+  if (!isAllowed(normalised))
     return NextResponse.json({ error: "NotAllowed" }, { status: 403 });
 
   // Sign a 15-minute token
