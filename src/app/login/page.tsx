@@ -34,8 +34,12 @@ function LoginForm() {
       if (!res.ok) {
         if (data.error === "NotAllowed") {
           setError("This email is not authorized to access this app.");
+        } else if (data.error === "SenderRestriction") {
+          setError(
+            "We couldn't send to that address — our email sender is currently restricted to Gmail. Please sign in with your Gmail instead."
+          );
         } else {
-          setError("Something went wrong. Please try again.");
+          setError("Something went wrong sending the email. Please try again or use a Gmail address.");
         }
       } else {
         setSent(true);

@@ -54,7 +54,14 @@ export async function POST(req: NextRequest) {
   if (!res.ok) {
     const err = await res.text();
     console.error("Resend error:", err);
-    return NextResponse.json({ error: "EmailFailed" }, { status: 500 });
+    let code = "EmailFailed";
+    try {
+      const parsed = JSON.parse(err);
+      if (parsed?.name === "validation_error" || parsed?.message?.includes("You can only send")) {
+        code = "SenderRestriction";
+      }
+    } catch { /* ignore */ }
+    return NextResponse.json({ error: code, detail: err }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
