@@ -42,3 +42,6 @@ scripts/data/
 
 # python secrets
 scripts/.env
+
+# scraper server deps (deployed separately to Railway)
+scraper-server/node_modules/
