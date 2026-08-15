@@ -6,8 +6,8 @@ const FROM = process.env.AUTH_EMAIL_FROM ?? "onboarding@resend.dev";
 const BASE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
 
 function isAllowed(email: string): boolean {
-  // Allow any Gmail address, or any email in the optional allowlist
   if (email.endsWith("@gmail.com")) return true;
+  if (email.endsWith(".edu")) return true;
   const extra = (process.env.ALLOWED_EMAILS ?? "")
     .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
   return extra.length > 0 && extra.includes(email);
