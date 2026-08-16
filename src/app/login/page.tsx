@@ -7,6 +7,7 @@ import { Suspense } from "react";
 function LoginForm() {
   const params = useSearchParams();
   const errorParam = params.get("error");
+  const nextParam = params.get("next") ?? "/";
 
   const [email, setEmail]     = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,7 +28,7 @@ function LoginForm() {
       const res = await fetch("/api/magic-link/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), next: nextParam }),
       });
       const data = await res.json();
 

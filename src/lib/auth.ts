@@ -38,8 +38,19 @@ export function isAllowedEmail(email: string): boolean {
   return (ALLOWED_DOMAINS as readonly string[]).includes(match[1]);
 }
 
-export function signMagicToken(email: string): Promise<string> {
-  return new SignJWT({ email, typ: "magic" satisfies TokenType })
+/**
+ * Only same-site absolute paths survive. A protocol-relative value like
+ * `//evil.com` is a valid URL to the browser, so rejecting it here is what
+ * stops the sign-in link being turned into an open redirect.
+ */
+export function safeNextPath(next: unknown): string {
+  if (typeof next !== "string") return "/";
+  if (!next.startsWith("/") || next.startsWith("//")) return "/";
+  return next;
+}
+
+export function signMagicToken(email: string, next = "/"): Promise<string> {
+  return new SignJWT({ email, typ: "magic" satisfies TokenType, next: safeNextPath(next) })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(MAGIC_LINK_TTL)
@@ -69,6 +80,22 @@ export async function verifyToken(
     if (payload.typ !== expected) return null;
     const email = normaliseEmail(payload.email);
     return isAllowedEmail(email) ? email : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Like verifyToken, but also returns where the sign-in link should land. */
+export async function verifyMagicToken(
+  token: string | undefined
+): Promise<{ email: string; next: string } | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, secret(), { algorithms: ["HS256"] });
+    if (payload.typ !== "magic") return null;
+    const email = normaliseEmail(payload.email);
+    if (!isAllowedEmail(email)) return null;
+    return { email, next: safeNextPath(payload.next) };
   } catch {
     return null;
   }

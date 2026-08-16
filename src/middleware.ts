@@ -2,10 +2,22 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { SESSION_COOKIE, verifyToken } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/api/magic-link"];
-
 /** Every production hostname funnels here, so sessions and sign-in links share one origin. */
 const CANONICAL_HOST = "advisingplace.com";
+
+/**
+ * The site is public by default; only these need a session. Anything that
+ * spends API credits or touches a student's own data belongs on this list.
+ */
+const PROTECTED_PREFIXES = [
+  "/planner",
+  "/banner",
+  "/report-print",
+  "/api/chat",
+  "/api/advise",
+  "/api/extract-transcript",
+  "/api/banner",
+];
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -22,21 +34,26 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (PUBLIC_PATHS.some((p) => path.startsWith(p))) {
+  if (!PROTECTED_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`))) {
     return NextResponse.next();
   }
 
   // Verify the signature, expiry and domain rule — the cookie merely existing
   // proves nothing, since anyone can set one in their browser.
   const email = await verifyToken(request.cookies.get(SESSION_COOKIE)?.value, "session");
+  if (email) return NextResponse.next();
 
-  if (!email) {
-    const res = NextResponse.redirect(new URL("/login", request.url));
-    res.cookies.delete(SESSION_COOKIE);
-    return res;
+  // API callers get a status they can act on; people get sent to sign in and
+  // returned to the page they were reaching for.
+  if (path.startsWith("/api/")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  return NextResponse.next();
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("next", path + request.nextUrl.search);
+  const res = NextResponse.redirect(loginUrl);
+  res.cookies.delete(SESSION_COOKIE);
+  return res;
 }
 
 export const config = {

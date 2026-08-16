@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import Welcome from "@/components/Welcome";
 import UniversityDetail from "@/components/UniversityDetail";
-import Planner from "@/components/Planner";
 
-type View = "welcome" | "detail" | "planner";
+type View = "welcome" | "detail";
 
 export default function Home() {
   const [view, setView] = useState<View>("welcome");
+  const router = useRouter();
 
   const variants = {
     initial: { opacity: 0, y: 12 },
@@ -29,9 +30,11 @@ export default function Home() {
       >
         {view === "welcome" && <Welcome onStart={() => setView("detail")} />}
         {view === "detail" && (
-          <UniversityDetail onBack={() => setView("welcome")} onEnterPlanner={() => setView("planner")} />
+          <UniversityDetail
+            onBack={() => setView("welcome")}
+            onEnterPlanner={() => router.push("/planner")}
+          />
         )}
-        {view === "planner" && <Planner onExit={() => setView("detail")} />}
       </motion.div>
     </AnimatePresence>
   );

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/api-auth";
 import { norm, type Grade } from "@/lib/data";
 
 const VALID_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
@@ -66,6 +67,9 @@ Example output:
 {"gpa":3.45,"courses":[{"code":"CS 102","grade":"A","credits":3,"term":"Fall 2025"},{"code":"MTH 125","grade":"B+","credits":4,"term":"Spring 2026"},{"code":"CS 314","grade":"REG","credits":3,"term":"Fall 2026"}]}`;
 
 export async function POST(req: NextRequest) {
+  const unauthorized = await requireSession(req);
+  if (unauthorized) return unauthorized;
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "API key not configured on server." }, { status: 500 });

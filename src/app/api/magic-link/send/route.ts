@@ -5,14 +5,14 @@ const FROM = process.env.AUTH_EMAIL_FROM ?? "onboarding@resend.dev";
 const BASE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
 
 export async function POST(req: NextRequest) {
-  const { email } = await req.json();
+  const { email, next } = await req.json();
   const normalised = normaliseEmail(email);
 
   if (!normalised) return NextResponse.json({ error: "Email required" }, { status: 400 });
   if (!isAllowedEmail(normalised))
     return NextResponse.json({ error: "NotAllowed" }, { status: 403 });
 
-  const token = await signMagicToken(normalised);
+  const token = await signMagicToken(normalised, next);
   const link = `${BASE_URL}/api/magic-link/verify?token=${encodeURIComponent(token)}`;
 
   const res = await fetch("https://api.resend.com/emails", {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/api-auth";
 import { generateText, generateObject, tool, isStepCount } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
@@ -285,6 +286,9 @@ function buildNextSemPlan(
 // ── Main handler ───────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const unauthorized = await requireSession(req);
+  if (unauthorized) return unauthorized;
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "OPENAI_API_KEY not configured." }, { status: 500 });

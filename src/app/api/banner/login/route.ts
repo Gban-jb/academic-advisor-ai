@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/api-auth";
 
 const SCRAPER_URL = process.env.SCRAPER_URL ?? "http://localhost:3001";
 
 export async function POST(req: NextRequest) {
+  const unauthorized = await requireSession(req);
+  if (unauthorized) return unauthorized;
+
   const { username } = await req.json();
   if (!username) return NextResponse.json({ error: "Username required" }, { status: 400 });
 
