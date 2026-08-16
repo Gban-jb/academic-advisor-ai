@@ -1,33 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SignJWT } from "jose";
+import { isAllowedEmail, normaliseEmail, signMagicToken } from "@/lib/auth";
 
-const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET ?? "");
 const FROM = process.env.AUTH_EMAIL_FROM ?? "onboarding@resend.dev";
 const BASE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
 
-function isAllowed(email: string): boolean {
-  if (email.endsWith("@gmail.com")) return true;
-  if (email.endsWith(".edu")) return true;
-  const extra = (process.env.ALLOWED_EMAILS ?? "")
-    .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
-  return extra.length > 0 && extra.includes(email);
-}
-
 export async function POST(req: NextRequest) {
   const { email } = await req.json();
-  const normalised = (email ?? "").trim().toLowerCase();
+  const normalised = normaliseEmail(email);
 
   if (!normalised) return NextResponse.json({ error: "Email required" }, { status: 400 });
-  if (!isAllowed(normalised))
+  if (!isAllowedEmail(normalised))
     return NextResponse.json({ error: "NotAllowed" }, { status: 403 });
 
-  // Sign a 15-minute token
-  const token = await new SignJWT({ email: normalised })
-    .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("15m")
-    .setIssuedAt()
-    .sign(SECRET);
-
+  const token = await signMagicToken(normalised);
   const link = `${BASE_URL}/api/magic-link/verify?token=${encodeURIComponent(token)}`;
 
   const res = await fetch("https://api.resend.com/emails", {
