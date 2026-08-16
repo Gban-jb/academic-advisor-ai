@@ -39,6 +39,11 @@ export interface Major {
   planner?: boolean; // true = has a working degree planner
 }
 
+// College groupings and major names are taken from the AAMU Undergraduate
+// Bulletin 2026-2027. Chemistry is in CETPS (Dept of Physics/Chem/Math), not
+// CALNS. History is NOT offered as a standalone major at AAMU — only as a
+// minor and as a Political Science teaching concentration — so it is not in
+// this list.
 export const MAJORS: Major[] = [
   { name: "Computer Science", college: "Engineering & Physical Sciences", planner: true },
   { name: "Electrical Engineering", college: "Engineering & Physical Sciences" },
@@ -46,8 +51,8 @@ export const MAJORS: Major[] = [
   { name: "Civil Engineering", college: "Engineering & Physical Sciences" },
   { name: "Mathematics", college: "Engineering & Physical Sciences" },
   { name: "Physics", college: "Engineering & Physical Sciences" },
+  { name: "Chemistry", college: "Engineering & Physical Sciences" },
   { name: "Biology", college: "Agricultural & Life Sciences" },
-  { name: "Chemistry", college: "Agricultural & Life Sciences" },
   { name: "Food Science", college: "Agricultural & Life Sciences" },
   { name: "Animal Science", college: "Agricultural & Life Sciences" },
   { name: "Business Administration", college: "Business & Public Affairs" },
@@ -57,7 +62,6 @@ export const MAJORS: Major[] = [
   { name: "Psychology", college: "Education, Humanities & Behavioral Sciences" },
   { name: "Social Work", college: "Education, Humanities & Behavioral Sciences" },
   { name: "English", college: "Education, Humanities & Behavioral Sciences" },
-  { name: "History", college: "Education, Humanities & Behavioral Sciences" },
   { name: "Communications", college: "Education, Humanities & Behavioral Sciences" },
   { name: "Music", college: "Education, Humanities & Behavioral Sciences" },
 ];

@@ -34,7 +34,6 @@ export const MAJOR_FIELDS: Record<string, Field> = {
   "Psychology": "humanities",
   "Social Work": "humanities",
   "English": "humanities",
-  "History": "humanities",
   "Communications": "humanities",
   "Music": "humanities",
 };
@@ -573,18 +572,10 @@ export const MAJOR_CAREERS: MajorCareer[] = [
     ],
     onetQuery: "technical writer",
   },
-  {
-    slug: "history", major: "History", field: "humanities",
-    summary: "Research, evidence and argument. Strong pre-law preparation, and a real route into archives, museums and public history — Alabama has more of that work than most states.",
-    roles: ["Archivist", "Museum Curator", "Historic Preservation Specialist", "Policy Researcher", "Attorney (with law school)", "History Teacher"],
-    build: ["A research thesis you can hand to a graduate committee", "Archival or museum volunteering — this field hires on experience", "The LSAT if law school is the plan", "Digital humanities tools set you apart"],
-    employers: ["National Park Service and state historical commissions", "Museums, archives and libraries", "Federal agencies — historians and analysts", "Law schools and K-12 education"],
-    orgs: [
-      { name: "American Historical Association", url: "https://www.historians.org" },
-      { name: "ASALH", url: "https://asalh.org", hbcu: true },
-    ],
-    onetQuery: "historian archivist",
-  },
+  // Note: AAMU does not offer a standalone History major (bulletin 2026-2027).
+  // History is available as a minor and as a teaching concentration under
+  // Political Science. Kept here for informational purposes only — it is
+  // filtered out at the page level.
   {
     slug: "communications", major: "Communications", field: "humanities",
     summary: "Media, PR and strategic communication. Portfolio-first: what you have produced matters more than what you studied.",

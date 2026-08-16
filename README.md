@@ -12,13 +12,14 @@ checked, credits balanced — all the way to graduation.
 
 The site is organised around the two things a student needs a plan for:
 
-- **Graduation Planning** — the transcript-aware degree planner (`/planner`)
-  for Computer Science, plus **bulletin-transcribed 4-year sample plans** at
-  `/careers/[major]/curriculum` for Mathematics, Physics and Electrical
-  Engineering. The interactive planner needs a full course + prereq database
-  for each major (~40 courses each); the sample-plan view works from the
+- **Graduation Planning** — the transcript-aware interactive planner
+  (`/planner`) for Computer Science, plus **bulletin-transcribed 4-year sample
+  plans** at `/careers/[major]/curriculum` for **all 18 other AAMU
+  undergraduate majors**. The interactive planner needs a full course + prereq
+  database (~40 course records per major); the sample-plan view works from the
   bulletin's own tables and is prereq-valid by construction, so students in
-  those majors get real semester-by-semester guidance today.
+  every major get real semester-by-semester guidance today. Every credit total
+  is cross-checked against the bulletin's declared program total.
 - **Career Perspectives** — `/careers`, a curated hub of internships & jobs,
   hackathons, research programs, fellowships and resources, plus a dedicated
   page per major at `/careers/[major]` for **all 20 AAMU undergraduate majors**.
