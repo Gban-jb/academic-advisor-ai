@@ -74,6 +74,39 @@ if (pk?.col === "email") {
 
 await sql`CREATE INDEX IF NOT EXISTS plans_email_idx ON plans (email)`;
 
+// Internship postings mirrored from SimplifyJobs/Summer2027-Internships.
+// A listing can advertise several terms, so the key is (id, term).
+await sql`
+  CREATE TABLE IF NOT EXISTS internships (
+    id          text NOT NULL,
+    term        text NOT NULL,
+    term_start  date NOT NULL,
+    company     text NOT NULL,
+    title       text NOT NULL,
+    category    text NOT NULL,
+    url         text NOT NULL,
+    company_url text,
+    locations   jsonb NOT NULL DEFAULT '[]'::jsonb,
+    posted_at   timestamptz,
+    synced_at   timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (id, term)
+  )
+`;
+await sql`CREATE INDEX IF NOT EXISTS internships_term_idx ON internships (term)`;
+await sql`CREATE INDEX IF NOT EXISTS internships_category_idx ON internships (category)`;
+await sql`CREATE INDEX IF NOT EXISTS internships_posted_idx ON internships (posted_at DESC)`;
+
+// Single-row table used as a lock so concurrent requests don't all pull 10MB.
+await sql`
+  CREATE TABLE IF NOT EXISTS internship_sync (
+    id          integer PRIMARY KEY,
+    started_at  timestamptz,
+    finished_at timestamptz,
+    count       integer
+  )
+`;
+await sql`INSERT INTO internship_sync (id) VALUES (1) ON CONFLICT (id) DO NOTHING`;
+
 const cols = await sql`
   SELECT column_name, data_type FROM information_schema.columns
   WHERE table_name = 'plans' ORDER BY ordinal_position

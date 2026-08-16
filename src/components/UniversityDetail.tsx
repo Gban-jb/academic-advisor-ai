@@ -119,10 +119,16 @@ export default function UniversityDetail({ onBack, onEnterPlanner }: Props) {
                 <div className="text-xs text-slate-400 truncate">{m.college}</div>
               </div>
               {m.planner ? (
-                <button onClick={onEnterPlanner}
-                  className="shrink-0 text-xs font-semibold text-white bg-maroon-700 hover:bg-maroon-800 rounded-lg px-3 py-1.5 transition-colors">
-                  Plan it →
-                </button>
+                <div className="shrink-0 flex items-center gap-1.5">
+                  <a href="/internships"
+                    className="text-xs font-medium text-maroon-700 border border-maroon-200 hover:bg-maroon-50 rounded-lg px-2.5 py-1.5 transition-colors">
+                    Internships
+                  </a>
+                  <button onClick={onEnterPlanner}
+                    className="text-xs font-semibold text-white bg-maroon-700 hover:bg-maroon-800 rounded-lg px-3 py-1.5 transition-colors">
+                    Plan it →
+                  </button>
+                </div>
               ) : (
                 <span className="shrink-0 text-[10px] text-slate-400 border border-slate-200 rounded-md px-2 py-1">Catalog</span>
               )}

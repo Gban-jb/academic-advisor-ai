@@ -18,6 +18,9 @@ checked, credits balanced — all the way to graduation.
 - **Answers questions.** An AI advisor and chatbot with the course catalog in
   context, backed by retrieval over the bulletin.
 - **Saves your work.** Plans persist per student, so closing the tab loses nothing.
+- **Lists open internships.** Software, AI/ML, quant, product and hardware
+  postings mirrored from the SimplifyJobs list, filtered to terms that haven't
+  started yet, searchable by company, role and location.
 - **Keeps several plans.** Name them, duplicate one to try a different
   concentration or credit load, and switch between them — comparing paths no
   longer means destroying the one you already built.
@@ -106,13 +109,15 @@ it. Without one, Resend's sandbox only delivers to the account owner's address.
 
 ## Database
 
-Three tables, created by `scripts/init-db.mjs` (safe to re-run):
+Tables created by `scripts/init-db.mjs` (safe to re-run):
 
 | Table | Holds |
 |---|---|
 | `plans` | Named plans, many per student (`id` primary key, indexed by email). |
 | `login_requests` | Pending sign-ins, so a link opened elsewhere can release the waiting tab. |
 | `rate_limits` | Fixed-window counters for the public API. |
+| `internships` | Mirror of upcoming internship postings, keyed by (listing, term). |
+| `internship_sync` | Single-row lock and timestamp for the mirror refresh. |
 
 `users`, `accounts`, `sessions` and `verification_tokens` are leftovers from an
 earlier NextAuth setup and are no longer used.
@@ -126,6 +131,7 @@ src/
   app/
     page.tsx              Landing + AAMU detail (public)
     planner/              The planner wizard (requires sign-in)
+    internships/          Internship board (public)
     banner/               Banner SSB dashboard (requires sign-in)
     login/                Magic-link sign-in
     api/
@@ -134,6 +140,7 @@ src/
       advise/ chat/       AI advisor and chatbot
       extract-transcript/ Transcript OCR
       course-info/        Course descriptions (public, rate limited)
+      internships/        Internship listings (public)
       banner/             Proxy to the Banner scraper
   components/             Welcome, UniversityDetail, Planner, wizard steps
   lib/
@@ -143,6 +150,7 @@ src/
     api-auth.ts           requireSession() for route handlers
     db.ts                 Neon client
     rate-limit.ts         Postgres-backed rate limiting
+    internships.ts        Mirrors and filters the SimplifyJobs listings
 scraper-server/           Banner scraper (deployed separately to Railway)
 scripts/init-db.mjs       Database setup
 ```
@@ -169,3 +177,8 @@ every other hostname 308-redirects to it (see `CANONICAL_HOST` in
   graduates sooner. Up to 20 plans per student.
 - `/api/course-info` is public and rate limited to 60 requests/hour per IP; every
   other AI endpoint requires a session.
+- **Internship data is a mirror, not a feed we own.** It comes from
+  [SimplifyJobs/Summer2027-Internships](https://github.com/SimplifyJobs/Summer2027-Internships)
+  (maintained by Simplify and Pitt CSC), refreshed at most every 12 hours, and
+  filtered to terms that have not yet started. Listings link straight to each
+  employer; nothing about applicants is collected.
