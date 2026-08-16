@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAllowedEmail, normaliseEmail, signMagicToken } from "@/lib/auth";
+import { isAllowedEmail, normaliseEmail, safeNextPath, signMagicToken } from "@/lib/auth";
+import { db } from "@/lib/db";
+
+const LINK_TTL_MINUTES = 15;
 
 const FROM = process.env.AUTH_EMAIL_FROM ?? "onboarding@resend.dev";
 const BASE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
@@ -12,7 +15,27 @@ export async function POST(req: NextRequest) {
   if (!isAllowedEmail(normalised))
     return NextResponse.json({ error: "NotAllowed" }, { status: 403 });
 
-  const token = await signMagicToken(normalised, next);
+  // A pending request lets the tab that asked for the link finish signing in,
+  // even when the link is opened on a different device.
+  let requestId: string | null = null;
+  try {
+    const id = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + LINK_TTL_MINUTES * 60_000).toISOString();
+    await db()`
+      INSERT INTO login_requests (id, email, next_path, expires_at)
+      VALUES (${id}, ${normalised}, ${safeNextPath(next)}, ${expiresAt})
+    `;
+    requestId = id;
+
+    if (Math.random() < 0.05) {
+      await db()`DELETE FROM login_requests WHERE expires_at < now() - interval '1 day'`;
+    }
+  } catch (err) {
+    // Without a pending row the link still works on the device that opens it.
+    console.error("login_requests insert failed:", err);
+  }
+
+  const token = await signMagicToken(normalised, next, requestId ?? undefined);
   const link = `${BASE_URL}/api/magic-link/verify?token=${encodeURIComponent(token)}`;
 
   const res = await fetch("https://api.resend.com/emails", {
@@ -49,5 +72,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: code, detail: err }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, requestId });
 }

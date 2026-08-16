@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
@@ -8,14 +8,50 @@ function LoginForm() {
   const params = useSearchParams();
   const errorParam = params.get("error");
   const nextParam = params.get("next") ?? "/";
+  const confirmed = params.get("confirmed") === "1";
 
   const [email, setEmail]     = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent]       = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(null);
   const [error, setError]     = useState(
     errorParam === "expired" ? "That link has expired. Please request a new one." :
     errorParam === "missing" ? "Invalid sign-in link." : ""
   );
+
+  // While the link is outstanding, watch for it being opened — on this device
+  // or any other. Whichever tab is polling is the one that gets signed in.
+  useEffect(() => {
+    if (!requestId) return;
+    let active = true;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/magic-link/poll?id=${encodeURIComponent(requestId)}`);
+        const data = await res.json();
+        if (!active) return;
+        if (data.status === "approved") {
+          window.location.href = data.next || "/";
+          return;
+        }
+        if (data.status === "expired") {
+          setRequestId(null);
+          setSent(false);
+          setError("That sign-in request expired. Please request a new link.");
+          return;
+        }
+      } catch {
+        // Transient — the next tick tries again.
+      }
+      if (active) timer = setTimeout(poll, 2500);
+    };
+
+    let timer = setTimeout(poll, 2500);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [requestId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,6 +82,7 @@ function LoginForm() {
         }
       } else {
         setSent(true);
+        if (data.requestId) setRequestId(data.requestId);
       }
     } catch {
       setError("Network error. Please try again.");
@@ -70,7 +107,20 @@ function LoginForm() {
       {/* Card */}
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
 
-        {sent ? (
+        {confirmed ? (
+          <div className="p-8 text-center">
+            <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-green-50 border border-green-100 mb-4">
+              <svg className="h-7 w-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold text-slate-800 mb-2">You&apos;re signed in</h2>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Head back to the device where you started — it&apos;s signing you in now.
+              You can close this tab.
+            </p>
+          </div>
+        ) : sent ? (
           <div className="p-8 text-center">
             <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-green-50 border border-green-100 mb-4">
               <svg className="h-7 w-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -78,14 +128,28 @@ function LoginForm() {
               </svg>
             </div>
             <h2 className="text-lg font-semibold text-slate-800 mb-2">Check your email</h2>
-            <p className="text-sm text-slate-500 leading-relaxed mb-6">
+            <p className="text-sm text-slate-500 leading-relaxed mb-5">
               We sent a sign-in link to <strong className="text-slate-700">{email}</strong>.<br />
               Click the link to sign in — it expires in 15 minutes.
             </p>
+
+            {requestId && (
+              <div className="mb-5 flex items-center justify-center gap-2 rounded-xl bg-slate-50 border border-slate-100 px-3.5 py-3">
+                <svg className="h-4 w-4 animate-spin text-maroon-700 shrink-0" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                <p className="text-xs text-slate-500 text-left leading-relaxed">
+                  Waiting for you to open the link — you can open it on your phone and
+                  this page will sign you in automatically.
+                </p>
+              </div>
+            )}
+
             <p className="text-xs text-slate-400">
               Didn&apos;t get it? Check spam, or{" "}
               <button
-                onClick={() => { setSent(false); setEmail(""); }}
+                onClick={() => { setSent(false); setEmail(""); setRequestId(null); }}
                 className="text-maroon-700 underline underline-offset-2 hover:text-maroon-900"
               >
                 try again

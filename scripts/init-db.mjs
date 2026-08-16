@@ -32,6 +32,19 @@ await sql`
   )
 `;
 
+// Lets a sign-in started on one device be completed by a link clicked on another.
+await sql`
+  CREATE TABLE IF NOT EXISTS login_requests (
+    id         text PRIMARY KEY,
+    email      text NOT NULL,
+    next_path  text NOT NULL DEFAULT '/',
+    approved   boolean NOT NULL DEFAULT false,
+    consumed   boolean NOT NULL DEFAULT false,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz NOT NULL
+  )
+`;
+
 const cols = await sql`
   SELECT column_name, data_type FROM information_schema.columns
   WHERE table_name = 'plans' ORDER BY ordinal_position

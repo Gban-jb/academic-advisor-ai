@@ -49,8 +49,8 @@ export function safeNextPath(next: unknown): string {
   return next;
 }
 
-export function signMagicToken(email: string, next = "/"): Promise<string> {
-  return new SignJWT({ email, typ: "magic" satisfies TokenType, next: safeNextPath(next) })
+export function signMagicToken(email: string, next = "/", rid?: string): Promise<string> {
+  return new SignJWT({ email, typ: "magic" satisfies TokenType, next: safeNextPath(next), rid })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(MAGIC_LINK_TTL)
@@ -85,17 +85,24 @@ export async function verifyToken(
   }
 }
 
-/** Like verifyToken, but also returns where the sign-in link should land. */
+/**
+ * Like verifyToken, but also returns where the link should land and which
+ * pending sign-in request (if any) this link was issued for.
+ */
 export async function verifyMagicToken(
   token: string | undefined
-): Promise<{ email: string; next: string } | null> {
+): Promise<{ email: string; next: string; rid: string | null } | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret(), { algorithms: ["HS256"] });
     if (payload.typ !== "magic") return null;
     const email = normaliseEmail(payload.email);
     if (!isAllowedEmail(email)) return null;
-    return { email, next: safeNextPath(payload.next) };
+    return {
+      email,
+      next: safeNextPath(payload.next),
+      rid: typeof payload.rid === "string" ? payload.rid : null,
+    };
   } catch {
     return null;
   }
