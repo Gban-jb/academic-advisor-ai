@@ -17,6 +17,7 @@ const PROTECTED_PREFIXES = [
   "/api/advise",
   "/api/extract-transcript",
   "/api/banner",
+  "/api/plan",
 ];
 
 export async function middleware(request: NextRequest) {

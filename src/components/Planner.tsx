@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { EMPTY_STUDENT, YEAR1_SEM1_COURSES, type StudentData, type Concentration } from "@/lib/data";
 import StepClassification from "@/components/StepClassification";
@@ -25,6 +25,54 @@ export default function Planner({ onExit }: Props) {
   const [step, setStep]       = useState(0);
   const [dir,  setDir]        = useState(1);
   const [student, setStudent] = useState<StudentData>(EMPTY_STUDENT);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  // Nothing is written back until the saved plan has loaded, otherwise the
+  // empty starting state would overwrite real work on first render.
+  const [restored, setRestored] = useState(false);
+  const lastSaved = useRef<string>("");
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/plan")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!active || !d?.plan) return;
+        setStudent(d.plan.data as StudentData);
+        setStep(typeof d.plan.step === "number" ? d.plan.step : 0);
+        lastSaved.current = JSON.stringify({ data: d.plan.data, step: d.plan.step });
+      })
+      .catch(() => {})
+      .finally(() => active && setRestored(true));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!restored) return;
+    const payload = JSON.stringify({ data: student, step });
+    if (payload === lastSaved.current) return;
+
+    // Debounced so typing in the transcript doesn't fire a write per keystroke.
+    const timer = setTimeout(async () => {
+      setSaveState("saving");
+      try {
+        const res = await fetch("/api/plan", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        lastSaved.current = payload;
+        setSaveState("saved");
+      } catch {
+        setSaveState("error");
+      }
+    }, 900);
+
+    return () => clearTimeout(timer);
+  }, [student, step, restored]);
 
   const go = (target: number) => {
     setDir(target > step ? 1 : -1);
@@ -66,9 +114,19 @@ export default function Planner({ onExit }: Props) {
             <p className="text-xs sm:text-sm text-slate-500 mt-1">AAMU · BS Computer Science · Degree Planner</p>
           </div>
         </div>
-        <button onClick={onExit} className="no-print text-sm text-slate-500 hover:text-maroon-700 transition-colors">
-          ← Exit
-        </button>
+        <div className="no-print flex items-center gap-4">
+          {saveState !== "idle" && (
+            <span
+              className={`text-xs ${saveState === "error" ? "text-red-600" : "text-slate-400"}`}
+              title={saveState === "error" ? "We couldn't save your latest changes" : undefined}
+            >
+              {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Not saved"}
+            </span>
+          )}
+          <button onClick={onExit} className="text-sm text-slate-500 hover:text-maroon-700 transition-colors">
+            ← Exit
+          </button>
+        </div>
       </motion.header>
 
       {/* Stepper */}
