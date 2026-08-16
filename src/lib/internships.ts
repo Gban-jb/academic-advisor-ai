@@ -76,7 +76,10 @@ interface SourceListing {
   company_url?: string;
   locations?: string[];
   terms?: string[];
+  degrees?: string[];
+  sponsorship?: string;
   date_posted?: number;
+  date_updated?: number;
   active?: boolean;
   is_visible?: boolean;
 }
@@ -91,7 +94,10 @@ interface Row {
   url: string;
   companyUrl: string | null;
   locations: string[];
+  degrees: string[];
+  sponsorship: string | null;
   postedAt: string | null;
+  sourceUpdatedAt: string | null;
 }
 
 /** Flattens the source into one row per (listing, upcoming term). */
@@ -118,7 +124,12 @@ export function buildRows(listings: SourceListing[], now = new Date()): Row[] {
         url: l.url,
         companyUrl: l.company_url ?? null,
         locations: Array.isArray(l.locations) ? l.locations.slice(0, 12) : [],
+        degrees: Array.isArray(l.degrees) ? l.degrees : [],
+        // "Other" is the source's placeholder — only a real restriction is worth showing.
+        sponsorship:
+          l.sponsorship && l.sponsorship !== "Other" ? l.sponsorship : null,
         postedAt: l.date_posted ? new Date(l.date_posted * 1000).toISOString() : null,
+        sourceUpdatedAt: l.date_updated ? new Date(l.date_updated * 1000).toISOString() : null,
       });
     }
   }
@@ -161,7 +172,8 @@ export async function syncInternships(): Promise<number | null> {
     const chunk = rows.slice(i, i + 250);
     await db()`
       INSERT INTO internships
-        (id, term, term_start, company, title, category, url, company_url, locations, posted_at, synced_at)
+        (id, term, term_start, company, title, category, url, company_url, locations,
+         degrees, sponsorship, posted_at, source_updated_at, synced_at)
       SELECT * FROM unnest(
         ${chunk.map((r) => r.id)}::text[],
         ${chunk.map((r) => r.term)}::text[],
@@ -172,7 +184,10 @@ export async function syncInternships(): Promise<number | null> {
         ${chunk.map((r) => r.url)}::text[],
         ${chunk.map((r) => r.companyUrl)}::text[],
         ${chunk.map((r) => JSON.stringify(r.locations))}::jsonb[],
+        ${chunk.map((r) => JSON.stringify(r.degrees))}::jsonb[],
+        ${chunk.map((r) => r.sponsorship)}::text[],
         ${chunk.map((r) => r.postedAt)}::timestamptz[],
+        ${chunk.map((r) => r.sourceUpdatedAt)}::timestamptz[],
         ${chunk.map(() => stamp)}::timestamptz[]
       )
       ON CONFLICT (id, term) DO UPDATE SET
@@ -183,7 +198,10 @@ export async function syncInternships(): Promise<number | null> {
         url         = EXCLUDED.url,
         company_url = EXCLUDED.company_url,
         locations   = EXCLUDED.locations,
+        degrees     = EXCLUDED.degrees,
+        sponsorship = EXCLUDED.sponsorship,
         posted_at   = EXCLUDED.posted_at,
+        source_updated_at = EXCLUDED.source_updated_at,
         synced_at   = EXCLUDED.synced_at
     `;
   }

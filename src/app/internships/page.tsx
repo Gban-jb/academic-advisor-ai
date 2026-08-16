@@ -12,12 +12,16 @@ interface Listing {
   url: string;
   companyUrl: string | null;
   locations: string[];
+  degrees: string[];
+  sponsorship: string | null;
   postedAt: string | null;
+  sourceUpdatedAt: string | null;
 }
 
 interface Facet {
   term?: string;
   category?: string;
+  degree?: string;
   count: number;
 }
 
@@ -42,6 +46,8 @@ export default function InternshipsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [terms, setTerms] = useState<Facet[]>([]);
   const [categories, setCategories] = useState<Facet[]>([]);
+  const [degrees, setDegrees] = useState<Facet[]>([]);
+  const [degree, setDegree] = useState("");
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [term, setTerm] = useState("");
@@ -66,6 +72,7 @@ export default function InternshipsPage() {
         if (term) params.set("term", term);
         if (category) params.set("category", category);
         if (search) params.set("q", search);
+        if (degree) params.set("degree", degree);
 
         const res = await fetch(`/api/internships?${params}`);
         const d = await res.json();
@@ -73,6 +80,7 @@ export default function InternshipsPage() {
         setTotal(d.total);
         setTerms(d.terms ?? []);
         setCategories(d.categories ?? []);
+        setDegrees(d.degrees ?? []);
         setSyncedAt(d.syncedAt ?? null);
       } catch {
         if (!append) setListings([]);
@@ -81,7 +89,7 @@ export default function InternshipsPage() {
         firstLoad.current = false;
       }
     },
-    [term, category, search]
+    [term, category, search, degree]
   );
 
   useEffect(() => {
@@ -151,6 +159,22 @@ export default function InternshipsPage() {
             </FilterChip>
           ))}
         </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs text-slate-400">Open to</span>
+          <FilterChip active={degree === ""} onClick={() => setDegree("")}>
+            Any degree
+          </FilterChip>
+          {degrees.map((d) => (
+            <FilterChip
+              key={d.degree}
+              active={degree === d.degree}
+              onClick={() => setDegree(d.degree!)}
+            >
+              {d.degree} <span className="opacity-50">{d.count}</span>
+            </FilterChip>
+          ))}
+        </div>
       </div>
 
       <p className="mb-4 text-xs text-slate-400">
@@ -187,7 +211,26 @@ export default function InternshipsPage() {
                 {l.locations.length ? l.locations.slice(0, 3).join(" · ") : "Location not listed"}
                 {l.locations.length > 3 && ` +${l.locations.length - 3}`}
                 {l.postedAt && ` — posted ${postedLabel(l.postedAt)}`}
+                {l.sourceUpdatedAt && `, updated ${postedLabel(l.sourceUpdatedAt)}`}
               </p>
+
+              {(l.degrees.length > 0 || l.sponsorship) && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {l.degrees.map((d) => (
+                    <span
+                      key={d}
+                      className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-500"
+                    >
+                      {d}
+                    </span>
+                  ))}
+                  {l.sponsorship && (
+                    <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
+                      ⚠ {l.sponsorship}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             <span className="shrink-0 self-center rounded-lg bg-maroon-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors group-hover:bg-maroon-800">
               Apply →
@@ -204,6 +247,7 @@ export default function InternshipsPage() {
               setQuery("");
               setCategory("");
               setTerm("");
+              setDegree("");
             }}
             className="mt-3 text-sm text-maroon-700 underline underline-offset-2"
           >
@@ -228,9 +272,13 @@ export default function InternshipsPage() {
         </div>
       )}
 
-      <p className="mt-10 text-center text-xs leading-relaxed text-slate-400">
-        Listings link straight to each company&apos;s application page. We don&apos;t
-        collect applications or store anything about you here.
+      <p className="mx-auto mt-10 max-w-xl text-center text-xs leading-relaxed text-slate-400">
+        Postings are removed as soon as they stop accepting applications, so
+        everything here is still open — the source doesn&apos;t publish closing
+        dates, which is why you see when a role was posted and last updated
+        instead of a deadline. Listings link straight to each company&apos;s
+        application page; we don&apos;t collect applications or store anything
+        about you here.
       </p>
     </div>
   );

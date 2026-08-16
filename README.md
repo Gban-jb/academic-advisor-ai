@@ -75,9 +75,17 @@ request still signs in whichever device opened it.
 hardware internships. Students reach it from the landing page, next to the main
 call to action, and from the Computer Science card in the majors list.
 
-Listings are filterable by term and role, with free-text search across company,
-title and location. Each card links straight to the employer's own application
-page — nothing about applicants is collected or stored.
+Listings are filterable by term, role and degree level, with free-text search
+across company, title and location. Each card links straight to the employer's own
+application page — nothing about applicants is collected or stored.
+
+**There are no application deadlines, because the source doesn't publish any.**
+None of its 14,286 listings carries a closing date. What it does carry is used
+instead: when a posting was created and last updated, which degree levels it's
+open to, and the handful of listings that state a sponsorship restriction
+("Does Not Offer Sponsorship", "U.S. Citizenship is Required"). Closed roles are
+dropped at sync time, so a listing still on the page is still accepting
+applications — arguably better than a deadline that can go stale.
 
 **It's a mirror, not a live fetch.** The source
 ([SimplifyJobs/Summer2027-Internships](https://github.com/SimplifyJobs/Summer2027-Internships),

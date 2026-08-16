@@ -4,6 +4,9 @@ import { isStale, lastSyncedAt, syncInternships } from "@/lib/internships";
 
 const PAGE_SIZE = 30;
 
+/** Listings with no stated degree are treated as open to undergrads. */
+const BACHELORS = "Bachelor's";
+
 /**
  * Public listing feed. Data is served from our mirror; if the mirror has gone
  * stale the request refreshes it first, but only when there's nothing to show —
@@ -14,6 +17,7 @@ export async function GET(req: NextRequest) {
   const term = p.get("term") ?? "";
   const category = p.get("category") ?? "";
   const q = (p.get("q") ?? "").trim();
+  const degree = p.get("degree") ?? "";
   const page = Math.max(1, Number(p.get("page")) || 1);
 
   try {
@@ -31,10 +35,13 @@ export async function GET(req: NextRequest) {
   const offset = (page - 1) * PAGE_SIZE;
 
   const rows = await db()`
-    SELECT id, term, company, title, category, url, company_url, locations, posted_at
+    SELECT id, term, company, title, category, url, company_url, locations,
+           degrees, sponsorship, posted_at, source_updated_at
       FROM internships
      WHERE (${term} = '' OR term = ${term})
        AND (${category} = '' OR category = ${category})
+       AND (${degree} = '' OR degrees @> ${JSON.stringify([degree])}::jsonb
+            OR (${degree} = ${BACHELORS} AND degrees = '[]'::jsonb))
        AND (${like}::text IS NULL OR company ILIKE ${like} OR title ILIKE ${like}
             OR locations::text ILIKE ${like})
      ORDER BY posted_at DESC NULLS LAST, company ASC
@@ -46,6 +53,8 @@ export async function GET(req: NextRequest) {
       FROM internships
      WHERE (${term} = '' OR term = ${term})
        AND (${category} = '' OR category = ${category})
+       AND (${degree} = '' OR degrees @> ${JSON.stringify([degree])}::jsonb
+            OR (${degree} = ${BACHELORS} AND degrees = '[]'::jsonb))
        AND (${like}::text IS NULL OR company ILIKE ${like} OR title ILIKE ${like}
             OR locations::text ILIKE ${like})
   `;
@@ -59,6 +68,14 @@ export async function GET(req: NextRequest) {
       FROM internships GROUP BY category ORDER BY count(*) DESC
   `;
 
+  // The source lists a long tail of one-off degree labels (MD, JD, Bootcamp…);
+  // only the levels a CS student would actually filter by are worth a chip.
+  const degreeFacets = await db()`
+    SELECT d.value AS degree, count(*)::int AS count
+      FROM internships, jsonb_array_elements_text(degrees) AS d(value)
+     GROUP BY d.value HAVING count(*) >= 10 ORDER BY count(*) DESC LIMIT 5
+  `;
+
   return NextResponse.json(
     {
       listings: rows.map((r) => ({
@@ -70,13 +87,17 @@ export async function GET(req: NextRequest) {
         url: r.url,
         companyUrl: r.company_url,
         locations: r.locations ?? [],
+        degrees: r.degrees ?? [],
+        sponsorship: r.sponsorship,
         postedAt: r.posted_at,
+        sourceUpdatedAt: r.source_updated_at,
       })),
       total,
       page,
       pageSize: PAGE_SIZE,
       terms: termFacets.map((t) => ({ term: t.term, count: t.count })),
       categories: categoryFacets.map((c) => ({ category: c.category, count: c.count })),
+      degrees: degreeFacets.map((d) => ({ degree: d.degree, count: d.count })),
       syncedAt: await lastSyncedAt(),
     },
     { headers: { "Cache-Control": "no-store" } }

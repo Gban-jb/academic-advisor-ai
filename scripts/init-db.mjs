@@ -92,6 +92,12 @@ await sql`
     PRIMARY KEY (id, term)
   )
 `;
+// The source carries no deadline, so these are the next best signals: when the
+// posting was last touched, who it's open to, and any sponsorship restriction.
+await sql`ALTER TABLE internships ADD COLUMN IF NOT EXISTS source_updated_at timestamptz`;
+await sql`ALTER TABLE internships ADD COLUMN IF NOT EXISTS degrees jsonb NOT NULL DEFAULT '[]'::jsonb`;
+await sql`ALTER TABLE internships ADD COLUMN IF NOT EXISTS sponsorship text`;
+
 await sql`CREATE INDEX IF NOT EXISTS internships_term_idx ON internships (term)`;
 await sql`CREATE INDEX IF NOT EXISTS internships_category_idx ON internships (category)`;
 await sql`CREATE INDEX IF NOT EXISTS internships_posted_idx ON internships (posted_at DESC)`;
