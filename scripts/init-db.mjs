@@ -45,6 +45,35 @@ await sql`
   )
 `;
 
+// ── plans: one row per student → many named plans per student ───────────────
+// Written to be re-runnable: every step is guarded, and existing rows are
+// carried over as each student's first plan rather than dropped.
+await sql`ALTER TABLE plans ADD COLUMN IF NOT EXISTS id text`;
+await sql`ALTER TABLE plans ADD COLUMN IF NOT EXISTS name text`;
+await sql`ALTER TABLE plans ADD COLUMN IF NOT EXISTS last_opened_at timestamptz`;
+
+await sql`UPDATE plans SET id = gen_random_uuid()::text WHERE id IS NULL`;
+await sql`UPDATE plans SET name = 'My plan' WHERE name IS NULL OR name = ''`;
+await sql`UPDATE plans SET last_opened_at = updated_at WHERE last_opened_at IS NULL`;
+
+await sql`ALTER TABLE plans ALTER COLUMN id SET NOT NULL`;
+await sql`ALTER TABLE plans ALTER COLUMN name SET NOT NULL`;
+
+// email was the primary key while a student could only have one plan.
+const [pk] = await sql`
+  SELECT a.attname AS col
+    FROM pg_index i
+    JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+   WHERE i.indrelid = 'plans'::regclass AND i.indisprimary
+`;
+if (pk?.col === "email") {
+  await sql`ALTER TABLE plans DROP CONSTRAINT plans_pkey`;
+  await sql`ALTER TABLE plans ADD PRIMARY KEY (id)`;
+  console.log("migrated plans: primary key email → id");
+}
+
+await sql`CREATE INDEX IF NOT EXISTS plans_email_idx ON plans (email)`;
+
 const cols = await sql`
   SELECT column_name, data_type FROM information_schema.columns
   WHERE table_name = 'plans' ORDER BY ordinal_position

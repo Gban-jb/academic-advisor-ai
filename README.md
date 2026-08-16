@@ -18,6 +18,9 @@ checked, credits balanced — all the way to graduation.
 - **Answers questions.** An AI advisor and chatbot with the course catalog in
   context, backed by retrieval over the bulletin.
 - **Saves your work.** Plans persist per student, so closing the tab loses nothing.
+- **Keeps several plans.** Name them, duplicate one to try a different
+  concentration or credit load, and switch between them — comparing paths no
+  longer means destroying the one you already built.
 
 ---
 
@@ -107,7 +110,7 @@ Three tables, created by `scripts/init-db.mjs` (safe to re-run):
 
 | Table | Holds |
 |---|---|
-| `plans` | One saved plan per student, keyed by email. |
+| `plans` | Named plans, many per student (`id` primary key, indexed by email). |
 | `login_requests` | Pending sign-ins, so a link opened elsewhere can release the waiting tab. |
 | `rate_limits` | Fixed-window counters for the public API. |
 
@@ -127,7 +130,7 @@ src/
     login/                Magic-link sign-in
     api/
       magic-link/         send · verify · poll · logout
-      plan/               Load and save a student's plan
+      plans/              List, create, duplicate, rename, delete, load and save
       advise/ chat/       AI advisor and chatbot
       extract-transcript/ Transcript OCR
       course-info/        Course descriptions (public, rate limited)
@@ -161,7 +164,8 @@ every other hostname 308-redirects to it (see `CANONICAL_HOST` in
   quarantines mail from newly registered domains regardless of SPF/DKIM/DMARC
   passing. The fix is asking AAMU IT to allowlist `advisingplace.com`; Gmail
   sign-in works today.
-- **One plan per student.** Comparing "what if I switch concentration" scenarios
-  would need plans keyed by id with a name.
+- **No side-by-side comparison.** Students can keep multiple plans and switch
+  between them, but nothing yet lays two plans against each other to show which
+  graduates sooner. Up to 20 plans per student.
 - `/api/course-info` is public and rate limited to 60 requests/hour per IP; every
   other AI endpoint requires a session.

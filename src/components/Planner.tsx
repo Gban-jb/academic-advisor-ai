@@ -8,6 +8,7 @@ import StepEntry from "@/components/StepEntry";
 import StepReview from "@/components/StepReview";
 import StepConcentration from "@/components/StepConcentration";
 import StepPlan from "@/components/StepPlan";
+import PlanSwitcher, { type PlanSummary } from "@/components/PlanSwitcher";
 
 const STEPS = ["Standing", "Courses", "Review", "Concentration", "Plan"] as const;
 
@@ -27,30 +28,78 @@ export default function Planner({ onExit }: Props) {
   const [student, setStudent] = useState<StudentData>(EMPTY_STUDENT);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
-  // Nothing is written back until the saved plan has loaded, otherwise the
-  // empty starting state would overwrite real work on first render.
+  const [plans, setPlans] = useState<PlanSummary[]>([]);
+  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
+
+  // Nothing is written back until a plan has loaded, otherwise the empty
+  // starting state would overwrite real work on first render.
   const [restored, setRestored] = useState(false);
   const lastSaved = useRef<string>("");
 
+  /** Replace the editor's contents without letting the autosave fire on the swap. */
+  function adoptPlan(plan: { id: string; data: StudentData; step: number }) {
+    setRestored(false);
+    lastSaved.current = JSON.stringify({ data: plan.data, step: plan.step });
+    setStudent(plan.data ?? EMPTY_STUDENT);
+    setStep(typeof plan.step === "number" ? plan.step : 0);
+    setCurrentId(plan.id);
+    setSaveState("idle");
+    setRestored(true);
+  }
+
+  async function loadPlan(id: string) {
+    const res = await fetch(`/api/plans/${id}`);
+    if (!res.ok) return;
+    const { plan } = await res.json();
+    adoptPlan({ id: plan.id, data: plan.data as StudentData, step: plan.step });
+  }
+
+  async function refreshList(): Promise<PlanSummary[]> {
+    const res = await fetch("/api/plans");
+    if (!res.ok) return [];
+    const { plans: list } = await res.json();
+    setPlans(list);
+    return list;
+  }
+
+  // First load: open the most recently used plan, creating one if this is a
+  // student's first visit.
   useEffect(() => {
     let active = true;
-    fetch("/api/plan")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!active || !d?.plan) return;
-        setStudent(d.plan.data as StudentData);
-        setStep(typeof d.plan.step === "number" ? d.plan.step : 0);
-        lastSaved.current = JSON.stringify({ data: d.plan.data, step: d.plan.step });
-      })
-      .catch(() => {})
-      .finally(() => active && setRestored(true));
+    (async () => {
+      try {
+        const list = await refreshList();
+        if (!active) return;
+
+        if (list.length === 0) {
+          const created = await fetch("/api/plans", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: "My plan" }),
+          });
+          if (!created.ok) return;
+          const { id } = await created.json();
+          await refreshList();
+          if (active) adoptPlan({ id, data: EMPTY_STUDENT, step: 0 });
+          return;
+        }
+
+        await loadPlan(list[0].id);
+      } catch {
+        // Leave the planner usable offline; saving simply won't happen.
+      } finally {
+        if (active) setRestored(true);
+      }
+    })();
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!restored) return;
+    if (!restored || !currentId) return;
     const payload = JSON.stringify({ data: student, step });
     if (payload === lastSaved.current) return;
 
@@ -58,7 +107,7 @@ export default function Planner({ onExit }: Props) {
     const timer = setTimeout(async () => {
       setSaveState("saving");
       try {
-        const res = await fetch("/api/plan", {
+        const res = await fetch(`/api/plans/${currentId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: payload,
@@ -72,7 +121,70 @@ export default function Planner({ onExit }: Props) {
     }, 900);
 
     return () => clearTimeout(timer);
-  }, [student, step, restored]);
+  }, [student, step, restored, currentId]);
+
+  async function withBusy(fn: () => Promise<void>) {
+    setSwitching(true);
+    try {
+      await fn();
+    } finally {
+      setSwitching(false);
+    }
+  }
+
+  const handleSwitch = (id: string) =>
+    withBusy(async () => {
+      await loadPlan(id);
+      await refreshList();
+    });
+
+  const handleCreate = () =>
+    withBusy(async () => {
+      const res = await fetch("/api/plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: `Plan ${plans.length + 1}` }),
+      });
+      if (!res.ok) return;
+      const { id } = await res.json();
+      await refreshList();
+      adoptPlan({ id, data: EMPTY_STUDENT, step: 0 });
+    });
+
+  const handleDuplicate = () =>
+    withBusy(async () => {
+      if (!currentId) return;
+      const res = await fetch("/api/plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromId: currentId }),
+      });
+      if (!res.ok) return;
+      const { id } = await res.json();
+      await refreshList();
+      await loadPlan(id);
+    });
+
+  const handleRename = (name: string) =>
+    withBusy(async () => {
+      if (!currentId) return;
+      await fetch(`/api/plans/${currentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      await refreshList();
+    });
+
+  const handleDelete = () =>
+    withBusy(async () => {
+      if (!currentId || plans.length <= 1) return;
+      const name = plans.find((p) => p.id === currentId)?.name ?? "this plan";
+      if (!window.confirm(`Delete "${name}"? This can't be undone.`)) return;
+      await fetch(`/api/plans/${currentId}`, { method: "DELETE" });
+      const list = await refreshList();
+      if (list.length > 0) await loadPlan(list[0].id);
+    });
 
   const go = (target: number) => {
     setDir(target > step ? 1 : -1);
@@ -114,7 +226,17 @@ export default function Planner({ onExit }: Props) {
             <p className="text-xs sm:text-sm text-slate-500 mt-1">AAMU · BS Computer Science · Degree Planner</p>
           </div>
         </div>
-        <div className="no-print flex items-center gap-4">
+        <div className="no-print flex items-center gap-3">
+          <PlanSwitcher
+            plans={plans}
+            currentId={currentId}
+            onSwitch={handleSwitch}
+            onCreate={handleCreate}
+            onDuplicate={handleDuplicate}
+            onRename={handleRename}
+            onDelete={handleDelete}
+            busy={switching}
+          />
           {saveState !== "idle" && (
             <span
               className={`text-xs ${saveState === "error" ? "text-red-600" : "text-slate-400"}`}
