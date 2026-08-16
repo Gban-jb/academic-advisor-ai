@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { MAJOR_FIELDS } from "@/lib/careers";
 import { motion } from "framer-motion";
 import { AAMU, MAJORS, MINORS } from "@/lib/university";
 import { COURSES } from "@/lib/data";
@@ -107,31 +108,38 @@ export default function UniversityDetail({ onBack, onEnterPlanner }: Props) {
       {/* ── Majors ── */}
       <Section i={2}>
         <h2 className="text-lg font-semibold text-slate-900 mb-1">Majors</h2>
-        <p className="text-sm text-slate-500 mb-4">Computer Science has a full degree planner — the rest are listed below.</p>
+        <p className="text-sm text-slate-500 mb-4">
+          Every major has career resources. Computer Science also has the full degree
+          planner — more majors are on the way.
+        </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-10">
           {MAJORS.map((m, i) => (
             <motion.div key={m.name} variants={fadeUp} custom={i * 0.3} initial="hidden" whileInView="show" viewport={{ once: true }}
-              className={`rounded-xl border p-3 flex items-center justify-between gap-2 ${
+              className={`rounded-xl border p-3.5 flex flex-col gap-2.5 ${
                 m.planner ? "border-maroon-300 bg-maroon-50/60 shadow-sm" : "border-slate-100 bg-white"
               }`}>
               <div className="min-w-0">
                 <div className="text-sm font-medium text-slate-800 truncate">{m.name}</div>
                 <div className="text-xs text-slate-400 truncate">{m.college}</div>
               </div>
-              {m.planner ? (
-                <div className="shrink-0 flex items-center gap-1.5">
-                  <a href="/internships"
-                    className="text-xs font-medium text-maroon-700 border border-maroon-200 hover:bg-maroon-50 rounded-lg px-2.5 py-1.5 transition-colors">
-                    Internships
-                  </a>
+              <div className="flex items-center gap-1.5">
+                {m.planner ? (
                   <button onClick={onEnterPlanner}
-                    className="text-xs font-semibold text-white bg-maroon-700 hover:bg-maroon-800 rounded-lg px-3 py-1.5 transition-colors">
-                    Plan it →
+                    className="flex-1 text-xs font-semibold text-white bg-maroon-700 hover:bg-maroon-800 rounded-lg px-2.5 py-1.5 transition-colors">
+                    🎓 Plan graduation
                   </button>
-                </div>
-              ) : (
-                <span className="shrink-0 text-[10px] text-slate-400 border border-slate-200 rounded-md px-2 py-1">Catalog</span>
-              )}
+                ) : (
+                  <span
+                    title="A full planner for this major is coming — the CS planner is the pilot."
+                    className="flex-1 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg px-2.5 py-1.5 cursor-default">
+                    🎓 Planner soon
+                  </span>
+                )}
+                <a href={`/careers${MAJOR_FIELDS[m.name] ? `?field=${MAJOR_FIELDS[m.name]}` : ""}`}
+                  className="flex-1 text-center text-xs font-medium text-maroon-700 border border-maroon-200 hover:bg-maroon-50 rounded-lg px-2.5 py-1.5 transition-colors">
+                  💼 Careers
+                </a>
+              </div>
             </motion.div>
           ))}
         </div>

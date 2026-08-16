@@ -166,8 +166,8 @@ export default function InternshipsPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14">
       <header className="mb-8">
-        <a href="/" className="mb-6 inline-block text-sm text-slate-500 transition-colors hover:text-maroon-700">
-          ← Back
+        <a href="/careers" className="mb-6 inline-block text-sm text-slate-500 transition-colors hover:text-maroon-700">
+          ← All career resources
         </a>
         <h1 className="text-2xl font-bold tracking-tight text-maroon-900 sm:text-3xl">
           Internships for CS students

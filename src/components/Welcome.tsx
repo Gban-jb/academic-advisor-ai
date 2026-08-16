@@ -15,9 +15,28 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const } },
 };
 
+const PILLARS = [
+  {
+    icon: "🎓",
+    title: "Graduation Planning",
+    text: "Tell us where you are and your advisor maps every remaining semester — prerequisites checked, credits balanced, all the way to the finish line.",
+    points: ["Upload a transcript, see what's left", "Prereq-aware semester builder", "Save and compare plans"],
+    cta: "Plan my graduation",
+    external: false,
+  },
+  {
+    icon: "💼",
+    title: "Career Perspectives",
+    text: "The degree is half the story. Live internship openings, hackathons, paid research summers and fellowships — curated for Bulldogs in every major.",
+    points: ["1,000+ live internship openings", "Research programs & fellowships", "Programs built for HBCU students"],
+    cta: "Explore careers",
+    external: true,
+  },
+] as const;
+
 export default function Welcome({ onStart }: Props) {
   return (
-    <div className="relative min-h-screen overflow-hidden flex items-center justify-center px-4">
+    <div className="relative flex min-h-[calc(100vh-3.5rem)] items-center justify-center overflow-hidden px-4 py-12">
       {/* Animated ambient blobs */}
       <motion.div
         aria-hidden
@@ -36,16 +55,16 @@ export default function Welcome({ onStart }: Props) {
         variants={container}
         initial="hidden"
         animate="show"
-        className="relative z-10 max-w-3xl text-center"
+        className="relative z-10 w-full max-w-4xl text-center"
       >
         {/* Badge */}
-        <motion.div variants={item} className="inline-flex items-center gap-2 rounded-full border border-maroon-200 bg-white/70 backdrop-blur px-4 py-1.5 mb-8 shadow-sm">
-          <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-xs font-medium text-maroon-800">Your personal academic advisor</span>
+        <motion.div variants={item} className="mb-7 inline-flex items-center gap-2 rounded-full border border-maroon-200 bg-white/70 px-4 py-1.5 shadow-sm backdrop-blur">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
+          <span className="text-xs font-medium text-maroon-800">Your personal academic advisor · AAMU</span>
         </motion.div>
 
         {/* Headline */}
-        <motion.h1 variants={item} className="text-4xl sm:text-6xl font-bold tracking-tight text-maroon-900 leading-[1.05]">
+        <motion.h1 variants={item} className="text-4xl font-bold leading-[1.05] tracking-tight text-maroon-900 sm:text-6xl">
           Welcome to the{" "}
           <span className="bg-gradient-to-r from-maroon-700 via-maroon-600 to-gold-500 bg-clip-text text-transparent">
             Advising Place
@@ -53,58 +72,52 @@ export default function Welcome({ onStart }: Props) {
         </motion.h1>
 
         {/* Subhead */}
-        <motion.p variants={item} className="mt-6 text-lg sm:text-xl text-slate-600 leading-relaxed max-w-2xl mx-auto">
-          You don&rsquo;t have to worry about which courses to take next. Tell us where
-          you are, and your advisor maps out every semester — prerequisites, credits,
-          and graduation — all the way to the finish line.
+        <motion.p variants={item} className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
+          Two things every Bulldog needs a plan for: finishing the degree, and what
+          comes after it. Start with either.
         </motion.p>
 
-        {/* About us */}
-        <motion.div variants={item} className="mt-8 grid sm:grid-cols-3 gap-3 text-left max-w-2xl mx-auto">
-          {[
-            { icon: "🎓", title: "Built for students", text: "Upload a transcript and see exactly what's left." },
-            { icon: "🧭", title: "Smart sequencing", text: "Every prerequisite checked, every semester balanced." },
-            { icon: "✨", title: "Stress-free", text: "No guesswork — a clear path to your degree." },
-          ].map((c) => (
-            <div key={c.title} className="surface rounded-2xl p-4 border border-white/60 shadow-sm">
-              <div className="text-2xl mb-1">{c.icon}</div>
-              <div className="font-semibold text-slate-800 text-sm">{c.title}</div>
-              <div className="text-xs text-slate-500 mt-0.5 leading-relaxed">{c.text}</div>
-            </div>
-          ))}
+        {/* The two pillars */}
+        <motion.div variants={item} className="mx-auto mt-10 grid max-w-3xl gap-4 text-left sm:grid-cols-2">
+          {PILLARS.map((p) => {
+            const inner = (
+              <>
+                <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-maroon-700 to-maroon-900 text-xl shadow-soft">
+                  <span aria-hidden>{p.icon}</span>
+                </div>
+                <h2 className="text-lg font-bold text-maroon-900">{p.title}</h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{p.text}</p>
+                <ul className="mt-3 space-y-1.5">
+                  {p.points.map((pt) => (
+                    <li key={pt} className="flex items-start gap-2 text-xs text-slate-600">
+                      <span className="mt-0.5 text-gold-500" style={{ color: "#b8860b" }} aria-hidden>✦</span>
+                      {pt}
+                    </li>
+                  ))}
+                </ul>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-maroon-700 transition-colors group-hover:text-maroon-900">
+                  {p.cta}
+                  <span className="transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
+                </span>
+              </>
+            );
+            const cardCls =
+              "group flex flex-col rounded-3xl border border-white/70 bg-white/80 p-6 text-left shadow-lift backdrop-blur transition-all hover:-translate-y-1 hover:border-maroon-200 hover:shadow-xl";
+            return p.external ? (
+              <a key={p.title} href="/careers" className={cardCls}>
+                {inner}
+              </a>
+            ) : (
+              <button key={p.title} onClick={onStart} className={cardCls}>
+                {inner}
+              </button>
+            );
+          })}
         </motion.div>
 
-        {/* CTA */}
-        <motion.div variants={item} className="mt-10">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <motion.button
-              onClick={onStart}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              className="group inline-flex items-center gap-2 bg-gradient-to-r from-maroon-700 to-maroon-900 text-white rounded-2xl px-8 py-4 text-lg font-semibold shadow-lift"
-            >
-              Let&rsquo;s dive in
-              <motion.span
-                aria-hidden
-                animate={{ x: [0, 5, 0] }}
-                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-              >
-                →
-              </motion.span>
-            </motion.button>
-
-            <motion.a
-              href="/internships"
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              className="inline-flex items-center gap-2 rounded-2xl border border-maroon-200 bg-white/70 px-7 py-4 text-lg font-medium text-maroon-800 shadow-sm backdrop-blur transition-colors hover:border-maroon-300"
-            >
-              <span aria-hidden>💼</span>
-              Internships
-            </motion.a>
-          </div>
-          <p className="text-xs text-slate-400 mt-4">Free for AAMU students · Takes about 2 minutes</p>
-        </motion.div>
+        <motion.p variants={item} className="mt-6 text-xs text-slate-400">
+          Free for AAMU students · All 20 majors · No account needed to browse
+        </motion.p>
       </motion.div>
     </div>
   );

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import SignOutButton from "@/components/SignOutButton";
+import SiteNav from "@/components/SiteNav";
 import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({
@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable}>
       <body className="app-bg min-h-screen font-sans text-slate-800 antialiased">
-        <SignOutButton />
+        <SiteNav />
         {children}
         <Analytics />
       </body>

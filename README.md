@@ -8,6 +8,22 @@ checked, credits balanced — all the way to graduation.
 
 ---
 
+## The two pillars
+
+The site is organised around the two things a student needs a plan for:
+
+- **Graduation Planning** — the transcript-aware degree planner (`/planner`).
+  Computer Science has the full prerequisite-aware experience; every other AAMU
+  major is listed with its catalog and will gain a planner as course data lands.
+- **Career Perspectives** — `/careers`, a curated hub of internships & jobs,
+  hackathons, research programs, fellowships and resources for **all 20 AAMU
+  majors**, filterable by field. Programs built for HBCU students carry a
+  "for Bulldogs" badge. Every external URL was checked live before inclusion;
+  the curated list lives in `src/lib/careers.ts`.
+
+A shared navigation bar (`src/components/SiteNav.tsx`) carries both pillars and
+auth on every page.
+
 ## What it does
 
 - **Reads a transcript.** Upload a PDF or photo; Gemini extracts the courses and
@@ -188,6 +204,7 @@ src/
       extract-transcript/ Transcript OCR
       course-info/        Course descriptions (public, rate limited)
       internships/        Internship listings (public)
+      careers/            Career hub — internships, hackathons, research, fellowships
       banner/             Proxy to the Banner scraper
   components/             Welcome, UniversityDetail, Planner, wizard steps
   lib/
@@ -198,6 +215,7 @@ src/
     db.ts                 Neon client
     rate-limit.ts         Postgres-backed rate limiting
     internships.ts        Mirrors and filters the SimplifyJobs listings
+    careers.ts            Curated career content, tagged per field/major
 scraper-server/           Banner scraper (deployed separately to Railway)
 scripts/init-db.mjs       Database setup
 ```
