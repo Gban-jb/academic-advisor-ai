@@ -154,6 +154,29 @@ export const COURSES: Record<string, Course> = {
   "MTH 227": { code: "MTH 227", title: "Calculus III", credits: 4, prereqs: ["MTH 126"] },
   "MTH 237": { code: "MTH 237", title: "Linear Algebra", credits: 3, prereqs: ["MTH 126"] },
   "MTH 453": { code: "MTH 453", title: "Probability & Statistics", credits: 3, prereqs: ["MTH 126"] },
+
+  // ── Additional MTH courses — Mathematics major (Bulletin p.294-298) ──
+  // Extracted for the upcoming Mathematics interactive planner. Safe to
+  // include now: CS students taking math electives can also reference these.
+  "MTH 238": { code: "MTH 238", title: "Applied Differential Equations", credits: 3, prereqs: ["MTH 126"] },
+  "MTH 301": { code: "MTH 301", title: "Abstract Algebra I", credits: 3, prereqs: ["MTH 237"] },
+  "MTH 302": { code: "MTH 302", title: "Abstract Algebra II", credits: 3, prereqs: ["MTH 301"] },
+  "MTH 303": { code: "MTH 303", title: "Methods of Mathematical Physics", credits: 4, prereqs: ["MTH 227"] },
+  "MTH 324": { code: "MTH 324", title: "Elementary Statistics II", credits: 3, prereqs: ["MTH 111"] }, // or MTH 112 w/ MinC
+  "MTH 327": { code: "MTH 327", title: "Applied Regression Analysis", credits: 3, prereqs: ["MTH 324", "MTH 125"] },
+  "MTH 344": { code: "MTH 344", title: "Design and Analysis of Experiments", credits: 3, prereqs: ["MTH 327"] },
+  "MTH 351": { code: "MTH 351", title: "Intro to Real Analysis I", credits: 3, prereqs: ["MTH 227"] },
+  "MTH 352": { code: "MTH 352", title: "Intro to Real Analysis II", credits: 3, prereqs: ["MTH 351"] },
+  "MTH 371": { code: "MTH 371", title: "Number Theory", credits: 3, prereqs: ["MTH 237"] },
+  "MTH 383": { code: "MTH 383", title: "Numerical Analysis", credits: 3, prereqs: ["MTH 227", "CS 102"] },
+  "MTH 431": { code: "MTH 431", title: "Introduction to Graph Theory", credits: 3, prereqs: ["MTH 126"] },
+  "MTH 442": { code: "MTH 442", title: "Partial Differential Equations", credits: 3, prereqs: ["MTH 238"] },
+  "MTH 444": { code: "MTH 444", title: "Applied Time Series Analysis", credits: 3, prereqs: ["MTH 324"] },
+  "MTH 452": { code: "MTH 452", title: "Complex Analysis", credits: 3, prereqs: ["MTH 227"] },
+  "MTH 454": { code: "MTH 454", title: "Advanced Calculus", credits: 3, prereqs: ["MTH 227"] },
+  "MTH 473": { code: "MTH 473", title: "Statistics", credits: 3, prereqs: ["MTH 453"] },
+  "MTH 480": { code: "MTH 480", title: "Selected Topics in Mathematics", credits: 3, prereqs: ["MTH 301"] }, // or MTH 351
+  "MTH 481": { code: "MTH 481", title: "Senior Project (Math capstone)", credits: 3, prereqs: ["MTH 301"] }, // or MTH 351
   "PHY 213": { code: "PHY 213", title: "General Physics with Calculus I", credits: 4, prereqs: ["MTH 125"] },
   "PHY 214": { code: "PHY 214", title: "General Physics with Calculus II", credits: 4, prereqs: ["PHY 213", "MTH 126"] },
   "ORI 101": { code: "ORI 101", title: "First Year Experience", credits: 1, prereqs: [] },
@@ -202,6 +225,29 @@ export const PROGRAM_ELECTIVES: string[] = ["MTH 111", "MTH 227"];
 // Free electives — CS 330 and CS 311 live only in FILLER_POOL (used to hit 12-cr min
 // per semester); CS 484 moved to CS_MAJOR_REQUIRED. Keeping this array for future use.
 export const FREE_ELECTIVES: string[] = [];
+
+// ─── Mathematics major requirements (Bulletin p.214) ─────────────────────────
+// Ready for the Mathematics interactive planner once the wizard is refactored
+// to be program-driven. Total: 120 credit hours.
+
+/** Fixed MTH courses every Math major takes. */
+export const MATH_MAJOR_REQUIRED: string[] = [
+  "MTH 125", "MTH 126", "MTH 227", "MTH 237", "MTH 238",
+  "MTH 301", "MTH 351", "MTH 453", "MTH 481", // MTH 481 is the capstone
+];
+
+/**
+ * Approved MTH Major Electives (Bulletin p.214, footnote 5).
+ * Students pick 2 electives (6 credits) beyond the required list.
+ */
+export const MATH_MAJOR_ELECTIVES: string[] = [
+  "MTH 302", "MTH 303", "MTH 324", "MTH 327", "MTH 344",
+  "MTH 352", "MTH 371", "MTH 383", "MTH 444", "MTH 452",
+  "MTH 473", "MTH 480",
+];
+
+/** Programming course requirement for Math majors (any one of these). */
+export const MATH_PROGRAMMING_OPTIONS: string[] = ["CS 102", "EE 109"]; // EGC 104, ME 104 also acceptable per bulletin
 
 // Fixed GenEd (always required)
 export const GENED_FIXED: string[] = [
