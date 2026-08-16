@@ -4,8 +4,23 @@ import { SESSION_COOKIE, verifyToken } from "@/lib/auth";
 
 const PUBLIC_PATHS = ["/login", "/api/magic-link"];
 
+/** Every production hostname funnels here, so sessions and sign-in links share one origin. */
+const CANONICAL_HOST = "advisingplace.com";
+
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
+
+  // Preview deployments keep their own hostnames — redirecting those would
+  // make every preview URL bounce to production.
+  if (process.env.VERCEL_ENV === "production") {
+    const host = request.headers.get("host");
+    if (host && host !== CANONICAL_HOST) {
+      const url = new URL(request.url);
+      url.protocol = "https:";
+      url.host = CANONICAL_HOST;
+      return NextResponse.redirect(url, 308);
+    }
+  }
 
   if (PUBLIC_PATHS.some((p) => path.startsWith(p))) {
     return NextResponse.next();
