@@ -1855,7 +1855,21 @@ export function hasCurriculum(slug: string): boolean {
   return slug in CURRICULA;
 }
 
-/** Slugs where a fully interactive planner exists (course DB + prereq scheduler). */
+/**
+ * Slugs where a fully interactive planner exists (course DB + prereq scheduler).
+ * Reads from `PROGRAMS` (programs.ts) so any newly-added program automatically
+ * unlocks its interactive planner UI without touching this file.
+ */
 export function hasInteractivePlanner(slug: string): boolean {
-  return slug === "computer-science";
+  // Deliberate lazy import to avoid a hard cycle: curricula.ts is imported by
+  // pages; programs.ts is imported by scheduler + api routes.
+  // Both trees are safe as long as the imports don't loop at module-init time.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { PROGRAMS } = require("./programs") as { PROGRAMS: Record<string, unknown> };
+  return slug in PROGRAMS;
+}
+
+/** URL for the interactive planner, respecting the major query param. */
+export function interactivePlannerHref(slug: string): string {
+  return slug === "computer-science" ? "/planner" : `/planner?major=${encodeURIComponent(slug)}`;
 }

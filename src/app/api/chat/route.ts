@@ -4,19 +4,20 @@ import { generateText, tool, isStepCount } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import {
-  COURSES, CS_MAJOR_REQUIRED, CONCENTRATION_COURSES, CORE_CMP,
-  type StudentData, type Concentration,
+  COURSES,
+  type StudentData,
 } from "@/lib/data";
+import { getProgram } from "@/lib/programs";
 import { prereqsMet, getDoneSet, getRegisteredSet, type ScheduledSemester } from "@/lib/scheduler";
 import {
   mutMoveCourse, mutSwapCourse, mutAddCourse, mutRemoveCourse,
 } from "@/lib/schedule-mutations";
 
-const CONC_NAMES: Record<Concentration, string> = {
-  CYB: "Cybersecurity",
-  AI:  "Artificial Intelligence",
-  GCS: "General Computer Science",
-};
+function concentrationLabel(student: StudentData): string {
+  const program = getProgram(student.major);
+  return program.concentrations.find((c) => c.slug === student.concentration)?.label
+      ?? student.concentration;
+}
 
 function buildSystemPrompt(student: StudentData, semesters: ScheduledSemester[]): string {
   const done       = getDoneSet(student.transcript);
@@ -37,7 +38,8 @@ You help students adjust their degree plan by moving, swapping, adding, or remov
 ## Student Profile
 - Name: ${student.name || "Student"}
 - GPA: ${student.gpa.toFixed(2)}
-- Concentration: ${CONC_NAMES[student.concentration]}
+- Major: ${getProgram(student.major).major}
+- Concentration: ${concentrationLabel(student)}
 - Credits completed: ${student.transcript.filter(e => done.has(e.code)).reduce((s, e) => s + e.credits, 0)}
 - Courses completed: ${completedList}
 - Currently registered: ${registeredList}
@@ -163,8 +165,11 @@ function makeTools(
           prereqs: course.prereqs,
           prerequisitesMet: missing.length === 0,
           missingPrereqs: missing,
-          isRequired: CS_MAJOR_REQUIRED.includes(courseCode) || CORE_CMP.includes(courseCode),
-          isConcentration: CONCENTRATION_COURSES[student.concentration].includes(courseCode),
+          isRequired: getProgram(student.major).required.includes(courseCode)
+                   || getProgram(student.major).coreExtras.includes(courseCode),
+          isConcentration: (getProgram(student.major).concentrations
+              .find((c) => c.slug === student.concentration)?.courses ?? [])
+              .includes(courseCode),
         };
       },
     }),
@@ -187,8 +192,10 @@ function makeTools(
           (code) => !combined.has(code) && !alreadyScheduled.has(code) && prereqsMet(code, combined)
         );
 
-        const coreEligible = eligible.filter((c) => CS_MAJOR_REQUIRED.includes(c) || CORE_CMP.includes(c));
-        const concEligible = eligible.filter((c) => CONCENTRATION_COURSES[student.concentration].includes(c));
+        const program = getProgram(student.major);
+        const concCourses = program.concentrations.find((c) => c.slug === student.concentration)?.courses ?? [];
+        const coreEligible = eligible.filter((c) => program.required.includes(c) || program.coreExtras.includes(c));
+        const concEligible = eligible.filter((c) => concCourses.includes(c));
         const mathEligible = eligible.filter((c) => c.startsWith("MTH") || c.startsWith("PHY"));
         const other        = eligible.filter((c) => !coreEligible.includes(c) && !concEligible.includes(c) && !mathEligible.includes(c));
 

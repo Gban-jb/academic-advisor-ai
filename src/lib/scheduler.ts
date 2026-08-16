@@ -1,19 +1,28 @@
 import {
-  COURSES, CS_MAJOR_REQUIRED, CONCENTRATION_COURSES, CORE_CMP,
-  PROGRAM_ELECTIVES, GENED_FIXED, GENED_GROUPS, FREE_ELECTIVES,
-  FILLER_POOL, TOTAL_CREDITS_REQUIRED, CREDIT_MIN, CREDIT_MAX,
+  COURSES, FREE_ELECTIVES,
+  CREDIT_MIN, CREDIT_MAX,
   EXPECTED_SEMESTERS,
   gradeIsPassing, gradeIsRegistered,
   type Concentration, type StudentData, type TranscriptEntry,
 } from "./data";
+import { getProgram, type Program } from "./programs";
 
-function isHighPriority(code: string, concentration: Concentration): boolean {
+/**
+ * True when a course is high-priority for scheduling — required or
+ * concentration-driven for this program, or falls under one of the program's
+ * priority prefixes (e.g. math + physics for CS, math for Math).
+ */
+function isHighPriority(
+  code: string,
+  concentration: Concentration,
+  program: Program
+): boolean {
+  const conc = program.concentrations.find((c) => c.slug === concentration);
   return (
-    CS_MAJOR_REQUIRED.includes(code) ||
-    CONCENTRATION_COURSES[concentration].includes(code) ||
-    CORE_CMP.includes(code) ||
-    code.startsWith("MTH") ||
-    code.startsWith("PHY")
+    program.required.includes(code) ||
+    (conc?.courses.includes(code) ?? false) ||
+    program.coreExtras.includes(code) ||
+    program.priorityPrefixes.some((p) => code.startsWith(p))
   );
 }
 
@@ -81,9 +90,10 @@ function creditLoadLabel(credits: number): ScheduledSemester["load"] {
 
 // Returns courses eligible to pad a short semester, in priority order:
 // 1. Student's chosen interest courses (not in required queue or done)
-// 2. Standard FILLER_POOL (same exclusion)
+// 2. Program's fillerPool (same exclusion)
 function buildFillerPool(
   student: StudentData,
+  program: Program,
   completed: Set<string>,
   remaining: string[]
 ): string[] {
@@ -96,7 +106,7 @@ function buildFillerPool(
     }
   }
 
-  for (const code of FILLER_POOL) {
+  for (const code of program.fillerPool) {
     if (!completed.has(code) && !remainingSet.has(code) && !pool.includes(code)) {
       pool.push(code);
     }
@@ -105,7 +115,7 @@ function buildFillerPool(
   return pool;
 }
 
-function buildQueue(student: StudentData): string[] {
+function buildQueue(student: StudentData, program: Program): string[] {
   const done = getDoneSet(student.transcript);
   const registered = getRegisteredSet(student.transcript);
   const alreadyHave = new Set(Array.from(done).concat(Array.from(registered)));
@@ -115,16 +125,17 @@ function buildQueue(student: StudentData): string[] {
     if (!alreadyHave.has(code) && !needed.includes(code)) needed.push(code);
   };
 
-  // Calculus and physics sequences front-loaded: MTH 126 gates MTH 237, MTH 453,
-  // PHY 214, CS 425, CS 430 — it must reach Pass 1 before CS courses fill HIGH_CAP.
-  ["MTH 125", "MTH 126", "PHY 213", "PHY 214"].forEach(addIfMissing);
-  CS_MAJOR_REQUIRED.forEach(addIfMissing);
-  CONCENTRATION_COURSES[student.concentration].forEach(addIfMissing);
-  CORE_CMP.forEach(addIfMissing);
-  PROGRAM_ELECTIVES.forEach(addIfMissing);
-  GENED_FIXED.forEach(addIfMissing);
+  // Front-load the program's dependency spine (e.g. Calculus + Physics for CS)
+  // before major-specific courses so downstream prereqs don't stall.
+  program.frontLoad.forEach(addIfMissing);
+  program.required.forEach(addIfMissing);
+  const conc = program.concentrations.find((c) => c.slug === student.concentration);
+  (conc?.courses ?? []).forEach(addIfMissing);
+  program.coreExtras.forEach(addIfMissing);
+  program.programElectives.forEach(addIfMissing);
+  program.genedFixed.forEach(addIfMissing);
 
-  for (const group of GENED_GROUPS) {
+  for (const group of program.genedGroups) {
     const alreadySatisfied = group.options.some((opt) =>
       opt.every((c) => alreadyHave.has(c))
     );
@@ -138,6 +149,7 @@ function buildQueue(student: StudentData): string[] {
   }
 
   FREE_ELECTIVES.forEach(addIfMissing);
+  program.freeElectives.forEach(addIfMissing);
   return needed;
 }
 
@@ -156,6 +168,7 @@ export function buildSchedule(
   student: StudentData,
   opts?: { overrideSemesters?: number }
 ): ScheduleResult {
+  const program = getProgram(student.major);
   const done = getDoneSet(student.transcript);
   const registered = getRegisteredSet(student.transcript);
   const failed = getFailedSet(student.transcript);
@@ -182,7 +195,7 @@ export function buildSchedule(
 
   const completedAfterSem1 = new Set([...done, ...registered]);
 
-  const queue = buildQueue(student);
+  const queue = buildQueue(student, program);
   const retakeQueue = Array.from(failed).filter((c) => !registered.has(c));
   const mainQueue = queue.filter((c) => !retakeQueue.includes(c));
   const fullQueue = [...retakeQueue, ...mainQueue];
@@ -192,7 +205,7 @@ export function buildSchedule(
   const alreadyDoneCredits = Array.from(completedAfterSem1).reduce(
     (s, c) => s + (COURSES[c]?.credits ?? 3), 0
   );
-  const remainingCreditsTotal = TOTAL_CREDITS_REQUIRED - alreadyDoneCredits;
+  const remainingCreditsTotal = program.totalCredits - alreadyDoneCredits;
   // sem1 (pre-registered) already occupies one expected slot; remaining courses
   // must fit in the future semesters only.
   const futureSemCount = Math.max(1, expectedSems - (sem1Courses.length > 0 ? 1 : 0));
@@ -202,7 +215,7 @@ export function buildSchedule(
   const baseTarget = creditTargetOverridden ? neededTarget : rawTarget;
   const targetSems = opts?.overrideSemesters ?? null;
 
-  let completed = new Set(completedAfterSem1);
+  const completed = new Set(completedAfterSem1);
   let remaining = fullQueue.filter((c) => !completed.has(c));
   let semIndex = semesters.length;
   const MAX_SEMESTERS = 20;
@@ -245,8 +258,8 @@ export function buildSchedule(
       semTarget = baseTarget;
     }
 
-    const highPriority = available.filter((c) =>  isHighPriority(c, student.concentration));
-    const genEdFiller  = available.filter((c) => !isHighPriority(c, student.concentration));
+    const highPriority = available.filter((c) => isHighPriority(c, student.concentration, program));
+    const genEdFiller  = available.filter((c) => !isHighPriority(c, student.concentration, program));
 
     const tryAdd = (code: string) => {
       const credits = COURSES[code]?.credits ?? 3;
@@ -257,41 +270,41 @@ export function buildSchedule(
       return true;
     };
 
-    const isCSCourse = (code: string) => code.startsWith("CS ");
-    // Preferred cap is 3, but raise it automatically so all CS courses fit within
-    // the student's remaining semesters — never delay graduation for the cap.
-    const CS_PREFERRED_CAP = 3;
-    const allCSRemaining = remaining.filter(c => isCSCourse(c)).length;
+    // Per-major course cap: preferred 3 per semester, raised automatically when
+    // behind schedule so all major courses fit within remaining time.
+    const isMajorCourse = (code: string) => code.startsWith(program.majorPrefix);
+    const MAJOR_PREFERRED_CAP = 3;
+    const allMajorRemaining = remaining.filter((c) => isMajorCourse(c)).length;
     const semsScheduledSoFar = semIndex - firstFutureSemIdx;
     const semsLeft = Math.max(1, futureSemCount - semsScheduledSoFar);
-    const dynamicCSCap = Math.max(CS_PREFERRED_CAP, Math.ceil(allCSRemaining / semsLeft));
-    let csAdded = 0;
+    const dynamicMajorCap = Math.max(MAJOR_PREFERRED_CAP, Math.ceil(allMajorRemaining / semsLeft));
+    let majorAdded = 0;
 
     // When behind schedule, raise the high-priority threshold to semTarget so
     // required courses fill first and gen-ed takes whatever space is left.
     const HIGH_CAP = Math.round(semTarget * 0.67);
-    const effectiveHighCap = dynamicCSCap > CS_PREFERRED_CAP ? semTarget : HIGH_CAP;
+    const effectiveHighCap = dynamicMajorCap > MAJOR_PREFERRED_CAP ? semTarget : HIGH_CAP;
 
-    // Pass 1: fill with high-priority math/physics/CS up to effectiveHighCap
+    // Pass 1: fill with high-priority (major/math/physics) up to effectiveHighCap
     for (const code of highPriority) {
       if (semCredits >= effectiveHighCap) break;
-      if (isCSCourse(code) && csAdded >= dynamicCSCap) continue;
-      if (tryAdd(code) && isCSCourse(code)) csAdded++;
+      if (isMajorCourse(code) && majorAdded >= dynamicMajorCap) continue;
+      if (tryAdd(code) && isMajorCourse(code)) majorAdded++;
     }
 
-    // Pass 2: fill to semTarget with gen-ed (CS cap still applies)
+    // Pass 2: fill to semTarget with gen-ed (major cap still applies)
     for (const code of genEdFiller) {
       if (semCredits >= semTarget) break;
-      if (isCSCourse(code) && csAdded >= dynamicCSCap) continue;
-      if (tryAdd(code) && isCSCourse(code)) csAdded++;
+      if (isMajorCourse(code) && majorAdded >= dynamicMajorCap) continue;
+      if (tryAdd(code) && isMajorCourse(code)) majorAdded++;
     }
 
-    // Pass 3: fill remainder with more high-priority if still under target (CS cap applies)
+    // Pass 3: fill remainder with more high-priority if still under target
     for (const code of highPriority) {
       if (semCredits >= semTarget) break;
       if (semCourses.includes(code)) continue;
-      if (isCSCourse(code) && csAdded >= dynamicCSCap) continue;
-      if (tryAdd(code) && isCSCourse(code)) csAdded++;
+      if (isMajorCourse(code) && majorAdded >= dynamicMajorCap) continue;
+      if (tryAdd(code) && isMajorCourse(code)) majorAdded++;
     }
 
     // Pass 4: if still under minimum, use anything available
@@ -302,21 +315,21 @@ export function buildSchedule(
       }
     }
 
-    // Enforce ≥ 12: top up with filler courses (interest courses first, then FILLER_POOL)
+    // Enforce ≥ 12: top up with filler courses (interest courses first, then program.fillerPool)
     if (semCredits < CREDIT_MIN) {
-      const fillers = buildFillerPool(student, completed, remaining).filter(
+      const fillers = buildFillerPool(student, program, completed, remaining).filter(
         (c) => !semCourses.includes(c) && prereqsMet(c, completed)
       );
 
       for (const filler of fillers) {
         if (semCredits >= CREDIT_MIN) break;
-        if (isCSCourse(filler) && csAdded >= dynamicCSCap) continue;
+        if (isMajorCourse(filler) && majorAdded >= dynamicMajorCap) continue;
         const cr = COURSES[filler]?.credits ?? 3;
         if (semCredits + cr <= CREDIT_MAX) {
           semCourses.push(filler);
           semCredits += cr;
           semFillers.push(filler);
-          if (isCSCourse(filler)) csAdded++;
+          if (isMajorCourse(filler)) majorAdded++;
         }
       }
 
@@ -352,7 +365,7 @@ export function buildSchedule(
     const extTarget = Math.max(CREDIT_MIN, student.extensionCreditTarget ?? CREDIT_MIN);
 
     while (semIndex < targetSems) {
-      const fillers = buildFillerPool(student, completed, []).filter(
+      const fillers = buildFillerPool(student, program, completed, []).filter(
         (c) => prereqsMet(c, completed)
       );
 

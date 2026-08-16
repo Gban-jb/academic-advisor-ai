@@ -7,12 +7,9 @@ import {
   type StudentData, type Grade, type Concentration, type TranscriptEntry,
 } from "@/lib/data";
 
+import { getProgram } from "@/lib/programs";
+
 const ALL_GRADES: Grade[] = ["A+","A","A-","B+","B","B-","C+","C","C-","D+","D","D-","F","W","WF","I","TA","TB","TC","S","CR","P","REG"];
-const CONCENTRATIONS: { value: Concentration; label: string }[] = [
-  { value: "AI",  label: "Artificial Intelligence" },
-  { value: "CYB", label: "Cybersecurity" },
-  { value: "GCS", label: "General Computer Science" },
-];
 
 interface Props {
   student: StudentData;
@@ -174,7 +171,9 @@ export default function StepEntry({ student, onChange, onNext }: Props) {
           { label: "GPA", el: <input type="number" step="0.01" min="0" max="4" className="field" value={student.gpa} onChange={(e) => onChange({ ...student, gpa: parseFloat(e.target.value) || 0 })} /> },
           { label: "Concentration", el: (
             <select className="field" value={student.concentration} onChange={(e) => onChange({ ...student, concentration: e.target.value as Concentration })}>
-              {CONCENTRATIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              {getProgram(student.major).concentrations.map((c) => (
+                <option key={c.slug} value={c.slug}>{c.label}</option>
+              ))}
             </select>
           )},
         ].map(({ label, el }) => (

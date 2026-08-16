@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { majorSlug } from "@/lib/careers";
-import { hasCurriculum, hasInteractivePlanner } from "@/lib/curricula";
+import { hasCurriculum, hasInteractivePlanner, interactivePlannerHref } from "@/lib/curricula";
 import { motion } from "framer-motion";
 import { AAMU, MAJORS, MINORS } from "@/lib/university";
 import { COURSES } from "@/lib/data";
@@ -126,10 +126,19 @@ export default function UniversityDetail({ onBack, onEnterPlanner }: Props) {
               </div>
               <div className="flex items-center gap-1.5">
                 {hasInteractivePlanner(majorSlug(m.name)) ? (
-                  <button onClick={onEnterPlanner}
-                    className="flex-1 text-xs font-semibold text-white bg-maroon-700 hover:bg-maroon-800 rounded-lg px-2.5 py-1.5 transition-colors">
-                    🎓 Plan graduation
-                  </button>
+                  // CS uses the pass-through handler (preserves the existing
+                  // homepage animation). Other majors deep-link into the planner.
+                  majorSlug(m.name) === "computer-science" ? (
+                    <button onClick={onEnterPlanner}
+                      className="flex-1 text-xs font-semibold text-white bg-maroon-700 hover:bg-maroon-800 rounded-lg px-2.5 py-1.5 transition-colors">
+                      🎓 Plan graduation
+                    </button>
+                  ) : (
+                    <a href={interactivePlannerHref(majorSlug(m.name))}
+                      className="flex-1 text-center text-xs font-semibold text-white bg-maroon-700 hover:bg-maroon-800 rounded-lg px-2.5 py-1.5 transition-colors">
+                      🎓 Plan graduation
+                    </a>
+                  )
                 ) : hasCurriculum(majorSlug(m.name)) ? (
                   <a href={`/careers/${majorSlug(m.name)}/curriculum`}
                     className="flex-1 text-center text-xs font-semibold text-white bg-maroon-700 hover:bg-maroon-800 rounded-lg px-2.5 py-1.5 transition-colors">

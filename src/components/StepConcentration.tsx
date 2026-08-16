@@ -1,35 +1,45 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CONCENTRATION_COURSES, COURSES, type Concentration } from "@/lib/data";
+import { COURSES, type Concentration } from "@/lib/data";
+import { getProgram } from "@/lib/programs";
 
 interface Props {
+  major: string | undefined;
   current: Concentration;
   onChange: (c: Concentration) => void;
   onBack: () => void;
   onNext: () => void;
 }
 
-const OPTIONS: { value: Concentration; label: string; icon: string; description: string; gradient: string }[] = [
-  { value: "AI",  label: "Artificial Intelligence", icon: "🤖", description: "Machine learning, robotics, computer vision, and AI fundamentals.", gradient: "from-maroon-600 to-maroon-800" },
-  { value: "CYB", label: "Cybersecurity", icon: "🔐", description: "Information security, cryptography, forensics, and network defense.", gradient: "from-gold-500 to-gold-700" },
-  { value: "GCS", label: "General Computer Science", icon: "💻", description: "Broad CS foundation with flexible elective choices.", gradient: "from-slate-600 to-slate-800" },
-];
+/**
+ * Concentration picker — reads options straight from `PROGRAMS[major]` so it
+ * works for any major. CS still shows three cards (CYB / AI / GCS); Math shows
+ * one (General Mathematics); each future major renders its own concentrations.
+ */
+export default function StepConcentration({ major, current, onChange, onBack, onNext }: Props) {
+  const program = getProgram(major);
+  const options = program.concentrations;
+  const single = options.length === 1;
 
-export default function StepConcentration({ current, onChange, onBack, onNext }: Props) {
   return (
     <div>
-      <h2 className="text-xl font-semibold text-slate-900 mb-1">Choose Your Concentration</h2>
-      <p className="text-slate-500 text-sm mb-6">21 credit hours. All three share CS 381, CS 384, and CS 488 as common courses.</p>
+      <h2 className="text-xl font-semibold text-slate-900 mb-1">
+        {single ? "Confirm Your Track" : "Choose Your Concentration"}
+      </h2>
+      <p className="text-slate-500 text-sm mb-6">
+        {single
+          ? `${program.major} has one BS track. Continue to generate your plan.`
+          : `Pick the ${program.major} concentration that fits your goals.`}
+      </p>
 
-      <div className="grid gap-4 sm:grid-cols-3 mb-6">
-        {OPTIONS.map((opt, i) => {
-          const selected = current === opt.value;
-          const courses = CONCENTRATION_COURSES[opt.value];
+      <div className={`grid gap-4 mb-6 ${options.length >= 3 ? "sm:grid-cols-3" : options.length === 2 ? "sm:grid-cols-2" : ""}`}>
+        {options.map((opt, i) => {
+          const selected = current === opt.slug;
           return (
             <motion.button
-              key={opt.value}
-              onClick={() => onChange(opt.value)}
+              key={opt.slug}
+              onClick={() => onChange(opt.slug)}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08, duration: 0.35 }}
@@ -50,10 +60,10 @@ export default function StepConcentration({ current, onChange, onBack, onNext }:
               <div className="font-semibold text-slate-900 text-sm mb-1">{opt.label}</div>
               <div className="text-xs text-slate-500 mb-3 leading-relaxed">{opt.description}</div>
               <div className="space-y-1 pt-3 border-t border-slate-100">
-                {courses.map((code) => (
+                {opt.courses.map((code) => (
                   <div key={code} className="text-xs text-slate-500 flex gap-1.5">
                     <span className="font-mono text-slate-400 shrink-0 w-14">{code}</span>
-                    <span className="truncate">{COURSES[code]?.title}</span>
+                    <span className="truncate">{COURSES[code]?.title ?? "—"}</span>
                   </div>
                 ))}
               </div>

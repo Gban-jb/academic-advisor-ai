@@ -7,25 +7,25 @@
 
 import {
   COURSES,
-  CS_MAJOR_REQUIRED,
-  CONCENTRATION_COURSES,
-  CORE_CMP,
+
   GENED_FIXED,
   gradeIsPassing,
   gradeIsRegistered,
   type StudentData,
-  type Concentration,
 } from "./data";
 import { prereqsMet, getDoneSet, getRegisteredSet, getFailedSet, buildSchedule } from "./scheduler";
 import type { ComputedFacts, ConcentrationProgress, PrereqWarning } from "./advisor-types";
+import { getProgram } from "./programs";
 
-const CONC_NAMES: Record<Concentration, string> = {
+// CS-only labels retained here for backwards compatibility with older callers
+// that don't have a student in scope. New code should use getProgram(...).concentrations.
+const CONC_NAMES: Record<string, string> = {
   CYB: "Cybersecurity",
   AI: "Artificial Intelligence",
   GCS: "General Computer Science",
 };
 
-const ALL_CONCENTRATIONS: Concentration[] = ["CYB", "AI", "GCS"];
+const ALL_CONCENTRATIONS: string[] = ["CYB", "AI", "GCS"];
 
 function getCreditsCompleted(transcript: StudentData["transcript"]): number {
   return transcript
@@ -38,7 +38,8 @@ function computeConcentrationProgress(
   gpa: number
 ): ConcentrationProgress[] {
   return ALL_CONCENTRATIONS.map((code) => {
-    const required = CONCENTRATION_COURSES[code];
+    const csProgram = getProgram("computer-science");
+    const required = csProgram.concentrations.find(c => c.slug === code)?.courses ?? [];
     const completed = required.filter((c) => completedSet.has(c));
     const remaining = required.filter((c) => !completedSet.has(c));
     return {
@@ -118,7 +119,7 @@ export function computeAdvisorFacts(student: StudentData): ComputedFacts {
   const prereqWarnings = computePrereqWarnings(student.transcript, completedSet, registeredSet);
   const concentrationProgress = computeConcentrationProgress(completedSet, student.gpa);
   const eligibleNextCourses = computeEligibleNextCourses(completedSet, registeredSet);
-  const remainingCore = CS_MAJOR_REQUIRED.filter(
+  const remainingCore = getProgram(student.major).required.filter(
     (c) => !completedSet.has(c) && !registeredSet.has(c)
   );
 

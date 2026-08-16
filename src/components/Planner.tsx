@@ -20,9 +20,15 @@ const stepVariants = {
 
 interface Props {
   onExit: () => void;
+  /**
+   * Major slug the planner should default to when creating a new plan. Falls
+   * back to Computer Science so anyone hitting `/planner` with no query param
+   * gets the historical behavior.
+   */
+  major?: string;
 }
 
-export default function Planner({ onExit }: Props) {
+export default function Planner({ onExit, major }: Props) {
   const [step, setStep]       = useState(0);
   const [dir,  setDir]        = useState(1);
   const [student, setStudent] = useState<StudentData>(EMPTY_STUDENT);
@@ -81,7 +87,13 @@ export default function Planner({ onExit }: Props) {
           if (!created.ok) return;
           const { id } = await created.json();
           await refreshList();
-          if (active) adoptPlan({ id, data: EMPTY_STUDENT, step: 0 });
+          // Seed the new plan with the requested major so the wizard's
+          // concentration step and scheduler read the right program.
+          if (active) adoptPlan({
+            id,
+            data: { ...EMPTY_STUDENT, major: major ?? EMPTY_STUDENT.major },
+            step: 0,
+          });
           return;
         }
 
@@ -321,6 +333,7 @@ export default function Planner({ onExit }: Props) {
             {step === 2 && <StepReview student={student} onBack={back} onNext={next} />}
             {step === 3 && (
               <StepConcentration
+                major={student.major}
                 current={student.concentration}
                 onChange={(c: Concentration) => setStudent((s) => ({ ...s, concentration: c }))}
                 onBack={back}

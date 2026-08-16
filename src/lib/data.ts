@@ -10,7 +10,13 @@ export type Grade =
   | "S" | "CR" | "P"
   | "REG"; // currently registered
 
-export type Concentration = "CYB" | "AI" | "GCS";
+/**
+ * Concentration slug. Loose `string` type because different majors have
+ * different concentration sets — the CS values ("CYB", "AI", "GCS"), the
+ * Math value ("GENERAL"), and future majors' concentrations all fit.
+ * Runtime validation happens against `PROGRAMS[student.major].concentrations`.
+ */
+export type Concentration = string;
 
 export interface Course {
   code: string;
@@ -59,6 +65,12 @@ export interface StudentData {
   name: string;
   id: string;
   gpa: number;
+  /**
+   * Major slug — matches a key in `PROGRAMS` (see programs.ts). Optional for
+   * backwards compatibility with saved plans that predate multi-major support;
+   * `getProgram(student.major)` defaults to Computer Science when missing.
+   */
+  major?: string;
   concentration: Concentration;
   transcript: TranscriptEntry[];
   classification: Classification;
@@ -333,6 +345,7 @@ export const EMPTY_STUDENT: StudentData = {
   name: "",
   id: "",
   gpa: 0,
+  major: "computer-science",
   concentration: "AI",
   transcript: [],
   classification: "frosh1",

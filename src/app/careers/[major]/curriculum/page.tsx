@@ -4,6 +4,7 @@ import { MAJOR_CAREERS } from "@/lib/careers";
 import {
   CURRICULA,
   hasInteractivePlanner,
+  interactivePlannerHref,
   type CoursePick,
   type Semester,
   type Year,
@@ -168,7 +169,7 @@ export default function CurriculumPage({ params }: Props) {
           </span>
           {interactive ? (
             <a
-              href="/planner"
+              href={interactivePlannerHref(c.slug)}
               className="rounded-xl bg-maroon-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-maroon-800"
             >
               Open interactive planner →

@@ -6,7 +6,7 @@ import {
   MAJOR_CAREERS,
   type CareerLink,
 } from "@/lib/careers";
-import { hasCurriculum, hasInteractivePlanner } from "@/lib/curricula";
+import { hasCurriculum, hasInteractivePlanner, interactivePlannerHref } from "@/lib/curricula";
 
 interface Props {
   params: { major: string };
@@ -88,7 +88,7 @@ export default function MajorCareerPage({ params }: Props) {
             </span>
             {hasInteractivePlanner(major.slug) && (
               <a
-                href="/planner"
+                href={interactivePlannerHref(major.slug)}
                 className="rounded-lg bg-maroon-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-maroon-800"
               >
                 Open interactive planner →

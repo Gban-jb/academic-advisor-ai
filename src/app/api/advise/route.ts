@@ -3,16 +3,21 @@ import { requireSession } from "@/lib/api-auth";
 import { generateText, generateObject, tool, isStepCount } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
-import { COURSES, CS_MAJOR_REQUIRED, CONCENTRATION_COURSES, GENED_FIXED, GENED_GROUPS, CORE_CMP, type StudentData, type Concentration } from "@/lib/data";
+import { COURSES, GENED_FIXED, GENED_GROUPS, type StudentData } from "@/lib/data";
+import { getProgram } from "@/lib/programs";
 import { prereqsMet, getDoneSet, getRegisteredSet, type ScheduleResult, type ScheduledSemester } from "@/lib/scheduler";
 import { computeAdvisorFacts, buildAdvisorSystemPrompt } from "@/lib/advisor-engine";
 import { AdvisorReportSchema, type AdvisorReport } from "@/lib/advisor-types";
 
-const CONC_NAMES: Record<Concentration, string> = {
-  CYB: "Cybersecurity",
-  AI: "Artificial Intelligence",
-  GCS: "General Computer Science",
-};
+function concentrationLabel(student: StudentData): string {
+  const program = getProgram(student.major);
+  return program.concentrations.find((c) => c.slug === student.concentration)?.label
+      ?? student.concentration;
+}
+function programOf(student: StudentData) { return getProgram(student.major); }
+function concentrationCourses(student: StudentData, conc: string): string[] {
+  return programOf(student).concentrations.find((c) => c.slug === conc)?.courses ?? [];
+}
 
 // ── Optional: query Pinecone for RAG context ──────────────────────────────────
 async function queryPinecone(queries: string[]): Promise<string> {
@@ -86,17 +91,17 @@ function makeTools(student: StudentData) {
       description:
         "Analyze how far along a student is in a specific concentration and which courses remain.",
       inputSchema: z.object({
-        concentration: z.enum(["CYB", "AI", "GCS"]).describe("Concentration to analyze"),
+        concentration: z.string().describe("Concentration slug (e.g. AI/CYB/GCS for CS, GENERAL for Math)"),
       }),
       execute: async ({ concentration }) => {
-        const required = CONCENTRATION_COURSES[concentration];
+        const required = concentrationCourses(student, concentration);
         const completed = required.filter((c) => completedSet.has(c));
         const inProgress = required.filter((c) => registeredSet.has(c));
         const remaining = required.filter((c) => !haveSet.has(c));
         const eligible = remaining.filter((c) => prereqsMet(c, haveSet));
         return {
           concentration,
-          name: CONC_NAMES[concentration],
+          name: programOf(student).concentrations.find(c => c.slug === concentration)?.label ?? concentration,
           totalRequired: required.length,
           completed: completed.map((c) => ({ code: c, name: COURSES[c]?.title })),
           inProgress: inProgress.map((c) => ({ code: c, name: COURSES[c]?.title })),
@@ -123,23 +128,23 @@ function makeTools(student: StudentData) {
           if (haveSet.has(code)) return false;
           return prereqsMet(code, haveSet);
         });
-        const coreEligible = eligible.filter((c) => CS_MAJOR_REQUIRED.includes(c));
+        const coreEligible = eligible.filter((c) => programOf(student).required.includes(c));
         const concEligible = eligible.filter((c) =>
-          CONCENTRATION_COURSES[student.concentration].includes(c)
+          concentrationCourses(student, student.concentration).includes(c)
         );
         const mathEligible = eligible.filter((c) => c.startsWith("MTH"));
         const csElectives = eligible.filter(
           (c) =>
             c.startsWith("CS") &&
-            !CS_MAJOR_REQUIRED.includes(c) &&
-            !CONCENTRATION_COURSES[student.concentration].includes(c)
+            !programOf(student).required.includes(c) &&
+            !concentrationCourses(student, student.concentration).includes(c)
         );
         const genEdEligible = eligible.filter(
           (c) =>
             !c.startsWith("CS") &&
             !c.startsWith("MTH") &&
-            !CS_MAJOR_REQUIRED.includes(c) &&
-            !CONCENTRATION_COURSES[student.concentration].includes(c)
+            !programOf(student).required.includes(c) &&
+            !concentrationCourses(student, student.concentration).includes(c)
         );
         return {
           prioritize,
@@ -180,7 +185,7 @@ function makeTools(student: StudentData) {
         const completedCredits = student.transcript
           .filter((e) => completedSet.has(e.code))
           .reduce((s, e) => s + e.credits, 0);
-        const remainingCore = CS_MAJOR_REQUIRED.filter((c) => !haveSet.has(c));
+        const remainingCore = programOf(student).required.filter((c) => !haveSet.has(c));
         const highGrades = student.transcript.filter((e) =>
           ["A+", "A", "A-"].includes(e.grade)
         );
@@ -213,10 +218,12 @@ function makeTools(student: StudentData) {
 
 function getCourseType(
   code: string,
-  concentration: Concentration
+  student: StudentData,
+  concentration: string
 ): "core" | "concentration" | "gen_ed" | "math" | "elective" {
-  if (CS_MAJOR_REQUIRED.includes(code) || CORE_CMP.includes(code)) return "core";
-  if (CONCENTRATION_COURSES[concentration].includes(code)) return "concentration";
+  const p = programOf(student);
+  if (p.required.includes(code) || p.coreExtras.includes(code)) return "core";
+  if (concentrationCourses(student, concentration).includes(code)) return "concentration";
   if (code.startsWith("MTH") || code.startsWith("PHY")) return "math";
   const isGenEd =
     GENED_FIXED.includes(code) ||
@@ -225,18 +232,20 @@ function getCourseType(
   return "elective";
 }
 
-function getCourseReason(code: string, concentration: Concentration, sem: ScheduledSemester): string {
+function getCourseReason(code: string, student: StudentData, concentration: string, sem: ScheduledSemester): string {
   if (sem.retakes.includes(code)) return "Retake — previously not passed; must complete for degree.";
   if (sem.fillerCourses.includes(code)) return "Elective added to meet the 12-credit full-time minimum.";
-  if (CS_MAJOR_REQUIRED.includes(code) || CORE_CMP.includes(code)) return "Required CS core course for degree completion.";
-  if (CONCENTRATION_COURSES[concentration].includes(code)) return `${concentration} concentration requirement.`;
-  if (code.startsWith("MTH") || code.startsWith("PHY")) return "Math/science sequence required for advanced CS courses.";
+  const p = programOf(student);
+  if (p.required.includes(code) || p.coreExtras.includes(code)) return `Required ${p.major} core course for degree completion.`;
+  if (concentrationCourses(student, concentration).includes(code)) return `${concentration} concentration requirement.`;
+  if (code.startsWith("MTH") || code.startsWith("PHY")) return "Math/science sequence required for advanced courses.";
   return "General education or elective requirement.";
 }
 
 function buildRoadmapFromSchedule(
   semesters: ScheduledSemester[],
-  concentration: Concentration
+  student: StudentData,
+  concentration: string
 ): AdvisorReport["fullRoadmap"] {
   return semesters.map((sem, i) => ({
     semesterLabel: sem.label,
@@ -247,7 +256,7 @@ function buildRoadmapFromSchedule(
         code,
         name: course?.title ?? code,
         credits: course?.credits ?? 3,
-        type: getCourseType(code, concentration),
+        type: getCourseType(code, student, concentration),
       };
     }),
     totalCredits: sem.totalCredits,
@@ -257,14 +266,15 @@ function buildRoadmapFromSchedule(
 
 function buildNextSemPlan(
   semesters: ScheduledSemester[],
-  concentration: Concentration,
+  student: StudentData,
+  concentration: string,
   haveSet: Set<string>
 ): AdvisorReport["nextSemesterPlan"] {
   const targetSem = semesters[0];
   if (!targetSem) return [];
   return targetSem.courses.map((code) => {
     const course = COURSES[code];
-    const type = getCourseType(code, concentration);
+    const type = getCourseType(code, student, concentration);
     return {
       code,
       name: course?.title ?? code,
@@ -277,7 +287,7 @@ function buildNextSemPlan(
           : type === "math"
           ? "math"
           : "recommended",
-      reason: getCourseReason(code, concentration, targetSem),
+      reason: getCourseReason(code, student, concentration, targetSem),
       prerequisitesMet: prereqsMet(code, haveSet),
     };
   });
@@ -387,8 +397,8 @@ Rules reminder:
     ...report,
     ...(scheduleResult && scheduleResult.semesters.length > 0
       ? {
-          nextSemesterPlan: buildNextSemPlan(scheduleResult.semesters, student.concentration, haveSet),
-          fullRoadmap: buildRoadmapFromSchedule(scheduleResult.semesters, student.concentration),
+          nextSemesterPlan: buildNextSemPlan(scheduleResult.semesters, student, student.concentration, haveSet),
+          fullRoadmap: buildRoadmapFromSchedule(scheduleResult.semesters, student, student.concentration),
         }
       : {}),
   };

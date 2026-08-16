@@ -112,7 +112,8 @@ export interface PrereqWarning {
 }
 
 export interface ConcentrationProgress {
-  code: "CYB" | "AI" | "GCS";
+  /** Concentration slug — CS uses "CYB"/"AI"/"GCS", other majors use their own slugs. */
+  code: string;
   name: string;
   required: string[];
   completed: string[];

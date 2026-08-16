@@ -32,7 +32,7 @@ const LOAD: Record<ScheduledSemester["load"], { label: string; chip: string; bar
   max:      { label: "Max",      chip: "bg-orange-100 text-orange-700", bar: "bg-orange-500" },
 };
 
-const CONC = { AI: "Artificial Intelligence", CYB: "Cybersecurity", GCS: "General CS" };
+const CONC: Record<string, string> = { AI: "Artificial Intelligence", CYB: "Cybersecurity", GCS: "General CS", GENERAL: "General Mathematics" };
 
 const FILLER_GROUPS = [
   { label: "Fine Arts & Humanities", codes: ["MUS 101", "ART 101", "COMM 101", "PHL 201", "PHL 203"] },
