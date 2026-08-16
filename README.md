@@ -69,6 +69,39 @@ request still signs in whichever device opened it.
 
 ---
 
+## Internship board
+
+`/internships` is a public page listing open software, AI/ML, quant, product and
+hardware internships. Students reach it from the landing page, next to the main
+call to action, and from the Computer Science card in the majors list.
+
+Listings are filterable by term and role, with free-text search across company,
+title and location. Each card links straight to the employer's own application
+page — nothing about applicants is collected or stored.
+
+**It's a mirror, not a live fetch.** The source
+([SimplifyJobs/Summer2027-Internships](https://github.com/SimplifyJobs/Summer2027-Internships),
+maintained by Simplify and Pitt CSC) is a ~10MB JSON file updated daily. Fetching
+that per request would be absurd, so `src/lib/internships.ts` pulls it into the
+`internships` table at most every 12 hours, trimmed to the fields shown.
+`internship_sync` is a single-row lock, so concurrent page views don't each pull
+10MB. A stale mirror is served immediately while the refresh runs behind it; only
+an empty one makes the request wait.
+
+Two things the raw data needs before it's presentable:
+
+- **Only upcoming terms are kept.** A term whose start month has already passed
+  is dropped at sync time, so a student browsing in August 2026 sees Fall 2026
+  onward and never Summer 2026. Roughly 500 of ~1,700 active listings are
+  filtered out this way, including those with no term at all.
+- **Categories are normalised.** The source uses `Software` and
+  `Software Engineering` as separate labels, likewise `AI/ML/Data` and
+  `Data Science, AI & Machine Learning`. Left alone they'd render as duplicate
+  filters, so they collapse into five buckets.
+
+Note also that Winter and Spring both begin in January. Spring's ordering key is
+nudged a month later so the term list can't shuffle between them.
+
 ## Local setup
 
 ```bash
