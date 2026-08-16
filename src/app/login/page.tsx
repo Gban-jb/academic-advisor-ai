@@ -14,6 +14,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent]       = useState(false);
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
   const [error, setError]     = useState(
     errorParam === "expired" ? "That link has expired. Please request a new one." :
     errorParam === "missing" ? "Invalid sign-in link." : ""
@@ -83,6 +84,7 @@ function LoginForm() {
       } else {
         setSent(true);
         if (data.requestId) setRequestId(data.requestId);
+        if (data.code) setCode(data.code);
       }
     } catch {
       setError("Network error. Please try again.");
@@ -133,6 +135,19 @@ function LoginForm() {
               Click the link to sign in — it expires in 15 minutes.
             </p>
 
+            {code && (
+              <div className="mb-4">
+                <p className="mb-2 text-xs text-slate-500">
+                  The link will ask you to confirm this code:
+                </p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 py-4">
+                  <span className="font-mono text-3xl font-bold tracking-[0.3em] text-maroon-800">
+                    {code}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {requestId && (
               <div className="mb-5 flex items-center justify-center gap-2 rounded-xl bg-slate-50 border border-slate-100 px-3.5 py-3">
                 <svg className="h-4 w-4 animate-spin text-maroon-700 shrink-0" viewBox="0 0 24 24" fill="none">
@@ -140,8 +155,8 @@ function LoginForm() {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
                 <p className="text-xs text-slate-500 text-left leading-relaxed">
-                  Waiting for you to open the link — you can open it on your phone and
-                  this page will sign you in automatically.
+                  Waiting for you to open the link — open it on your phone and this
+                  page will sign you in automatically once you confirm the code.
                 </p>
               </div>
             )}

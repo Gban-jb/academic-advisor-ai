@@ -45,6 +45,10 @@ await sql`
   )
 `;
 
+// Shown on both screens so the person confirming can tell they're approving
+// their own sign-in and not somebody else's waiting session.
+await sql`ALTER TABLE login_requests ADD COLUMN IF NOT EXISTS code text`;
+
 const cols = await sql`
   SELECT column_name, data_type FROM information_schema.columns
   WHERE table_name = 'plans' ORDER BY ordinal_position

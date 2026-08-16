@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAllowedEmail, normaliseEmail, safeNextPath, signMagicToken } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { generateLoginCode } from "@/lib/login-code";
 
 const LINK_TTL_MINUTES = 15;
 
@@ -18,14 +19,17 @@ export async function POST(req: NextRequest) {
   // A pending request lets the tab that asked for the link finish signing in,
   // even when the link is opened on a different device.
   let requestId: string | null = null;
+  let code: string | null = null;
   try {
     const id = crypto.randomUUID();
+    const generated = generateLoginCode();
     const expiresAt = new Date(Date.now() + LINK_TTL_MINUTES * 60_000).toISOString();
     await db()`
-      INSERT INTO login_requests (id, email, next_path, expires_at)
-      VALUES (${id}, ${normalised}, ${safeNextPath(next)}, ${expiresAt})
+      INSERT INTO login_requests (id, email, next_path, expires_at, code)
+      VALUES (${id}, ${normalised}, ${safeNextPath(next)}, ${expiresAt}, ${generated})
     `;
     requestId = id;
+    code = generated;
 
     if (Math.random() < 0.05) {
       await db()`DELETE FROM login_requests WHERE expires_at < now() - interval '1 day'`;
@@ -72,5 +76,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: code, detail: err }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, requestId });
+  return NextResponse.json({ ok: true, requestId, code });
 }

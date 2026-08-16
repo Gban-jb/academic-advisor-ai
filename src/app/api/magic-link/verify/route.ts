@@ -25,19 +25,19 @@ export async function GET(req: NextRequest) {
   if (result.rid) {
     try {
       const rows = await db()`
-        UPDATE login_requests
-           SET approved = true
-         WHERE id = ${result.rid}
-           AND consumed = false
-           AND expires_at > now()
-        RETURNING id
+        SELECT id FROM login_requests
+         WHERE id = ${result.rid} AND consumed = false AND expires_at > now()
       `;
       if (rows.length > 0) {
-        // A tab is waiting; it will collect the session on its next poll.
-        return NextResponse.redirect(new URL("/login?confirmed=1", req.url));
+        // Don't release the waiting tab yet — the person has to confirm the two
+        // screens show the same code, so a link can't approve a session they
+        // never started.
+        const url = new URL("/login/confirm", req.url);
+        url.searchParams.set("token", token);
+        return NextResponse.redirect(url);
       }
     } catch (err) {
-      console.error("login_requests approve failed:", err);
+      console.error("login_requests lookup failed:", err);
     }
   }
 
