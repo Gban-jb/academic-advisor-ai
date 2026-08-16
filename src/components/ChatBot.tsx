@@ -18,11 +18,63 @@ interface Props {
 }
 
 const SUGGESTIONS = [
-  "What can I take next semester?",
-  "Move CS 381 to a later semester",
-  "Swap a course in semester 2",
-  "Which courses are required?",
+  { icon: "🗓️", text: "What can I take next semester?" },
+  { icon: "🔁", text: "Swap a course in semester 2" },
+  { icon: "⏭️", text: "Move CS 381 to a later semester" },
+  { icon: "✅", text: "Which courses are required?" },
 ];
+
+/**
+ * The model answers with light markdown — **bold**, `code`, "- " bullets.
+ * Rendering those beats showing students the asterisks.
+ */
+function RichText({ text }: { text: string }) {
+  const lines = text.split("\n");
+  return (
+    <>
+      {lines.map((line, li) => {
+        const bullet = /^\s*[-•]\s+/.test(line);
+        const clean = bullet ? line.replace(/^\s*[-•]\s+/, "") : line;
+        const parts = clean.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
+        const rendered = parts.map((p, pi) => {
+          if (p.startsWith("**") && p.endsWith("**"))
+            return <strong key={pi} className="font-semibold">{p.slice(2, -2)}</strong>;
+          if (p.startsWith("`") && p.endsWith("`"))
+            return (
+              <code key={pi} className="rounded bg-black/[0.06] px-1 py-0.5 font-mono text-[0.85em]">
+                {p.slice(1, -1)}
+              </code>
+            );
+          return <span key={pi}>{p}</span>;
+        });
+        if (bullet)
+          return (
+            <span key={li} className="flex gap-1.5">
+              <span className="shrink-0 opacity-50">•</span>
+              <span>{rendered}</span>
+            </span>
+          );
+        return (
+          <span key={li} className="block min-h-[0.5em]">
+            {rendered}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+function PawAvatar({ size = "h-7 w-7 text-xs" }: { size?: string }) {
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center rounded-full ring-2 ring-gold-300/70 ${size}`}
+      style={{ background: "linear-gradient(135deg, #7B0D1E 0%, #4a0711 100%)" }}
+      aria-hidden
+    >
+      🐾
+    </span>
+  );
+}
 
 export default function ChatBot({ student, semesters, onScheduleChange }: Props) {
   const [open, setOpen]         = useState(false);
@@ -34,9 +86,7 @@ export default function ChatBot({ student, semesters, onScheduleChange }: Props)
   const inputRef                = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 200);
-    }
+    if (open) setTimeout(() => inputRef.current?.focus(), 200);
   }, [open]);
 
   useEffect(() => {
@@ -86,75 +136,141 @@ export default function ChatBot({ student, semesters, onScheduleChange }: Props)
     send(input);
   }
 
+  const firstName = student.name?.split(" ")[0] || "there";
+
   return (
     <>
-      {/* Floating toggle button */}
-      <motion.button
-        onClick={() => setOpen((v) => !v)}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gradient-to-br from-maroon-700 to-maroon-900 shadow-lift flex items-center justify-center text-white"
-        aria-label="Open advisor chat"
-      >
-        <AnimatePresence mode="wait">
-          {open ? (
-            <motion.svg key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }} className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </motion.svg>
-          ) : (
-            <motion.svg key="chat" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }} className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </motion.svg>
+      {/* Floating launcher */}
+      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+        <AnimatePresence>
+          {!open && (
+            <motion.span
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 8 }}
+              transition={{ delay: 1.2, duration: 0.4 }}
+              className="pointer-events-none hidden rounded-full border border-maroon-100 bg-white/90 px-3.5 py-1.5 text-xs font-medium text-maroon-800 shadow-md backdrop-blur sm:block"
+            >
+              Ask your advisor
+            </motion.span>
           )}
         </AnimatePresence>
-        {/* Pulse indicator when closed */}
-        {!open && messages.length === 0 && (
-          <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-gold-400 border-2 border-white animate-pulse" />
-        )}
-      </motion.button>
+
+        <motion.button
+          onClick={() => setOpen((v) => !v)}
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.94 }}
+          className="relative flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lift ring-2 ring-gold-300/60 ring-offset-2 ring-offset-transparent"
+          style={{ background: "linear-gradient(135deg, #8f1024 0%, #5a0915 60%, #3d060e 100%)" }}
+          aria-label={open ? "Close advisor chat" : "Open advisor chat"}
+        >
+          {/* Breathing glow while closed */}
+          {!open && (
+            <motion.span
+              aria-hidden
+              className="absolute inset-0 rounded-full"
+              style={{ boxShadow: "0 0 24px 4px rgba(123,13,30,0.45)" }}
+              animate={{ opacity: [0.4, 0.9, 0.4] }}
+              transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+            />
+          )}
+          <AnimatePresence mode="wait">
+            {open ? (
+              <motion.svg key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }} className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </motion.svg>
+            ) : (
+              <motion.span key="paw" initial={{ rotate: 45, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -45, opacity: 0 }} transition={{ duration: 0.15 }} className="text-xl" aria-hidden>
+                🐾
+              </motion.span>
+            )}
+          </AnimatePresence>
+          {!open && messages.length === 0 && (
+            <span className="absolute right-0.5 top-0.5 h-3 w-3 animate-pulse rounded-full border-2 border-white bg-gold-400" />
+          )}
+        </motion.button>
+      </div>
 
       {/* Chat panel */}
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.97 }}
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.97 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            className="fixed bottom-24 right-6 z-50 w-[370px] max-w-[calc(100vw-24px)] flex flex-col rounded-2xl bg-white shadow-[0_8px_40px_rgba(0,0,0,0.18)] overflow-hidden border border-slate-100"
-            style={{ height: "520px" }}
+            exit={{ opacity: 0, y: 16, scale: 0.96 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-24 left-4 right-4 z-50 flex h-[min(72vh,600px)] flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/95 shadow-[0_24px_70px_-12px_rgba(61,6,14,0.45)] backdrop-blur-xl sm:left-auto sm:right-6 sm:w-[400px]"
           >
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3.5 bg-gradient-to-r from-maroon-700 to-maroon-900 shrink-0">
-              <div className="h-8 w-8 rounded-xl bg-white/20 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                AI
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white leading-none">Bulldog Advisor</p>
-                <p className="text-[11px] text-maroon-200 mt-0.5">Ask me to adjust your schedule</p>
-              </div>
-              <div className="ml-auto flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-green-400" />
-                <span className="text-[11px] text-maroon-200">Online</span>
+            <div
+              className="relative shrink-0 overflow-hidden px-4 py-4"
+              style={{ background: "linear-gradient(120deg, #8f1024 0%, #5a0915 55%, #3d060e 100%)" }}
+            >
+              {/* Gold sheen */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -right-10 -top-14 h-40 w-40 rounded-full opacity-25 blur-2xl"
+                style={{ background: "radial-gradient(circle, #f5c542 0%, transparent 70%)" }}
+              />
+              <div className="relative flex items-center gap-3">
+                <PawAvatar size="h-10 w-10 text-lg" />
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-sm font-bold leading-none text-white">
+                    Bulldog Advisor
+                    <span className="rounded bg-gold-400/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-gold-300" style={{ color: "#f5c542" }}>
+                      AI
+                    </span>
+                  </p>
+                  <p className="mt-1 flex items-center gap-1.5 text-[11px] text-maroon-200">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                    Knows your whole plan · can edit it
+                  </p>
+                </div>
+                {messages.length > 0 && (
+                  <button
+                    onClick={() => { setMessages([]); setError(""); }}
+                    title="Start a new conversation"
+                    className="ml-auto rounded-lg p-1.5 text-maroon-200 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-slate-50/50">
+            <div className="flex-1 space-y-3 overflow-y-auto bg-gradient-to-b from-slate-50/80 to-white px-4 py-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-200">
               {messages.length === 0 && !thinking && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center pt-4">
-                  <div className="text-3xl mb-2">👋</div>
-                  <p className="text-sm font-semibold text-slate-700 mb-1">Hi {student.name?.split(" ")[0] || "there"}!</p>
-                  <p className="text-xs text-slate-400 mb-5">I know your full degree plan. Ask me anything — I can move courses, check prerequisites, or suggest changes.</p>
-                  <div className="space-y-1.5">
-                    {SUGGESTIONS.map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => send(s)}
-                        className="w-full text-left text-xs text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-maroon-300 hover:text-maroon-700 transition-colors"
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="pt-3 text-center">
+                  <motion.div
+                    animate={{ rotate: [0, -12, 12, 0] }}
+                    transition={{ delay: 0.5, duration: 0.8 }}
+                    className="mb-3 inline-block text-4xl"
+                    aria-hidden
+                  >
+                    👋
+                  </motion.div>
+                  <p className="mb-1 text-sm font-bold text-slate-800">Hey {firstName}!</p>
+                  <p className="mx-auto mb-5 max-w-[260px] text-xs leading-relaxed text-slate-400">
+                    I can see your full degree plan. Ask me to move courses, check
+                    prerequisites, or explain what&apos;s left.
+                  </p>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {SUGGESTIONS.map((s, i) => (
+                      <motion.button
+                        key={s.text}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15 + i * 0.07 }}
+                        onClick={() => send(s.text)}
+                        className="group flex items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 text-left text-xs text-slate-600 shadow-sm transition-all hover:-translate-y-px hover:border-maroon-300 hover:text-maroon-800 hover:shadow"
                       >
-                        {s}
-                      </button>
+                        <span className="text-sm" aria-hidden>{s.icon}</span>
+                        {s.text}
+                        <span className="ml-auto text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-maroon-400" aria-hidden>→</span>
+                      </motion.button>
                     ))}
                   </div>
                 </motion.div>
@@ -164,54 +280,56 @@ export default function ChatBot({ student, semesters, onScheduleChange }: Props)
                 {messages.map((msg, i) => (
                   <motion.div
                     key={i}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.22 }}
+                    className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   >
-                    <div className={`max-w-[85%] ${msg.role === "user" ? "" : "flex flex-col gap-1"}`}>
+                    {msg.role === "assistant" && <PawAvatar />}
+                    <div className={`max-w-[82%] ${msg.role === "user" ? "" : "flex flex-col gap-1"}`}>
                       {msg.scheduleChanged && (
                         <motion.div
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
-                          className="flex items-center gap-1.5 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5 mb-1"
+                          className="mb-1 flex items-center gap-1.5 rounded-lg border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 px-2.5 py-1.5 text-[11px] font-medium text-green-800"
                         >
-                          <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          Schedule updated — see changes in the plan above
+                          <span aria-hidden>✨</span>
+                          Plan updated — scroll up to see it
                         </motion.div>
                       )}
                       <div
-                        className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+                        className={`px-3.5 py-2.5 text-sm leading-relaxed ${
                           msg.role === "user"
-                            ? "bg-maroon-700 text-white rounded-tr-sm"
-                            : "bg-white border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm"
+                            ? "rounded-2xl rounded-br-md text-white shadow-md"
+                            : "rounded-2xl rounded-bl-md border border-slate-100 bg-white text-slate-800 shadow-sm"
                         }`}
+                        style={
+                          msg.role === "user"
+                            ? { background: "linear-gradient(135deg, #8f1024 0%, #5a0915 100%)" }
+                            : undefined
+                        }
                       >
-                        {msg.content}
+                        <RichText text={msg.content} />
                       </div>
                     </div>
                   </motion.div>
                 ))}
               </AnimatePresence>
 
-              {/* Thinking dots */}
               {thinking && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex justify-start"
-                >
-                  <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm flex items-center gap-1.5">
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex items-end gap-2">
+                  <PawAvatar />
+                  <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-slate-100 bg-white px-4 py-3 shadow-sm">
                     {[0, 1, 2].map((i) => (
                       <motion.span
                         key={i}
-                        className="h-2 w-2 rounded-full bg-maroon-400"
-                        animate={{ y: [0, -5, 0] }}
-                        transition={{ repeat: Infinity, duration: 0.7, delay: i * 0.15 }}
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ background: "#8f1024" }}
+                        animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                        transition={{ repeat: Infinity, duration: 0.9, delay: i * 0.15 }}
                       />
                     ))}
+                    <span className="ml-1 text-[11px] text-slate-400">thinking…</span>
                   </div>
                 </motion.div>
               )}
@@ -220,7 +338,7 @@ export default function ChatBot({ student, semesters, onScheduleChange }: Props)
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2 text-center"
+                  className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-center text-xs text-red-600"
                 >
                   {error}
                 </motion.p>
@@ -230,28 +348,32 @@ export default function ChatBot({ student, semesters, onScheduleChange }: Props)
             </div>
 
             {/* Input */}
-            <form
-              onSubmit={handleSubmit}
-              className="flex items-center gap-2 px-3 py-3 border-t border-slate-100 bg-white shrink-0"
-            >
-              <input
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask me to change your schedule…"
-                disabled={thinking}
-                className="flex-1 text-sm bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-maroon-400 focus:ring-2 focus:ring-maroon-100 disabled:opacity-50 transition-colors placeholder:text-slate-400"
-              />
-              <motion.button
-                type="submit"
-                disabled={!input.trim() || thinking}
-                whileTap={{ scale: 0.93 }}
-                className="h-10 w-10 rounded-xl bg-maroon-700 flex items-center justify-center text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-maroon-800 transition-colors shrink-0"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              </motion.button>
+            <form onSubmit={handleSubmit} className="shrink-0 border-t border-slate-100 bg-white/90 p-3 backdrop-blur">
+              <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 py-1 pl-4 pr-1 transition-all focus-within:border-maroon-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-maroon-100">
+                <input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={`Ask about your plan, ${firstName}…`}
+                  disabled={thinking}
+                  className="min-w-0 flex-1 bg-transparent py-2 text-sm placeholder:text-slate-400 focus:outline-none disabled:opacity-50"
+                />
+                <motion.button
+                  type="submit"
+                  disabled={!input.trim() || thinking}
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Send"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-sm transition-opacity disabled:opacity-30"
+                  style={{ background: "linear-gradient(135deg, #8f1024 0%, #5a0915 100%)" }}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
+                </motion.button>
+              </div>
+              <p className="mt-1.5 text-center text-[10px] text-slate-300">
+                AI advisor — double-check anything that affects your graduation
+              </p>
             </form>
           </motion.div>
         )}
