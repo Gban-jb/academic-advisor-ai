@@ -76,21 +76,33 @@ export default function Welcome({ onStart }: Props) {
 
         {/* CTA */}
         <motion.div variants={item} className="mt-10">
-          <motion.button
-            onClick={onStart}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.97 }}
-            className="group inline-flex items-center gap-2 bg-gradient-to-r from-maroon-700 to-maroon-900 text-white rounded-2xl px-8 py-4 text-lg font-semibold shadow-lift"
-          >
-            Let&rsquo;s dive in
-            <motion.span
-              aria-hidden
-              animate={{ x: [0, 5, 0] }}
-              transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <motion.button
+              onClick={onStart}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              className="group inline-flex items-center gap-2 bg-gradient-to-r from-maroon-700 to-maroon-900 text-white rounded-2xl px-8 py-4 text-lg font-semibold shadow-lift"
             >
-              →
-            </motion.span>
-          </motion.button>
+              Let&rsquo;s dive in
+              <motion.span
+                aria-hidden
+                animate={{ x: [0, 5, 0] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+              >
+                →
+              </motion.span>
+            </motion.button>
+
+            <motion.a
+              href="/internships"
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              className="inline-flex items-center gap-2 rounded-2xl border border-maroon-200 bg-white/70 px-7 py-4 text-lg font-medium text-maroon-800 shadow-sm backdrop-blur transition-colors hover:border-maroon-300"
+            >
+              <span aria-hidden>💼</span>
+              Internships
+            </motion.a>
+          </div>
           <p className="text-xs text-slate-400 mt-4">Free for AAMU students · Takes about 2 minutes</p>
         </motion.div>
       </motion.div>
