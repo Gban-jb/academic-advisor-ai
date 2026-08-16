@@ -33,13 +33,15 @@ function LoginForm() {
 
       if (!res.ok) {
         if (data.error === "NotAllowed") {
-          setError("This email is not authorized to access this app.");
+          setError(
+            "Sign-in is limited to @bulldogs.aamu.edu and @gmail.com addresses."
+          );
         } else if (data.error === "SenderRestriction") {
           setError(
-            "We couldn't send to that address — our email sender is currently restricted to Gmail. Please sign in with your Gmail instead."
+            "We couldn't send to that address — our email sender isn't verified for it yet. Please try your Gmail instead."
           );
         } else {
-          setError("Something went wrong sending the email. Please try again or use a Gmail address.");
+          setError("Something went wrong sending the email. Please try again.");
         }
       } else {
         setSent(true);
@@ -97,6 +99,10 @@ function LoginForm() {
               <p className="text-sm text-slate-500">
                 Enter your email and we&apos;ll send you a sign-in link — no password needed.
               </p>
+              <p className="mt-2 text-xs text-slate-400">
+                Only <strong className="font-medium text-slate-500">@bulldogs.aamu.edu</strong> and{" "}
+                <strong className="font-medium text-slate-500">@gmail.com</strong> addresses are accepted.
+              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="px-8 pb-8 pt-5 space-y-4">
@@ -109,7 +115,7 @@ function LoginForm() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="firstname.lastname@bulldogs.aamu.edu"
                   required
                   disabled={loading}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-maroon-400 focus:ring-2 focus:ring-maroon-100 disabled:opacity-60 transition-colors"
@@ -149,7 +155,7 @@ function LoginForm() {
       </div>
 
       <p className="mt-6 text-xs text-slate-400">
-        Only authorized email addresses can access this app.
+        Sign-in is restricted to AAMU Bulldogs and Gmail addresses.
       </p>
     </div>
   );

@@ -1,27 +1,24 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { SESSION_COOKIE, verifyToken } from "@/lib/auth";
 
-export function middleware(request: NextRequest) {
+const PUBLIC_PATHS = ["/login", "/api/magic-link"];
+
+export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // Let auth routes and login page through
-  if (
-    path.startsWith("/api/auth") ||
-    path.startsWith("/api/magic-link") ||
-    path.startsWith("/login")
-  ) {
+  if (PUBLIC_PATHS.some((p) => path.startsWith(p))) {
     return NextResponse.next();
   }
 
-  // next-auth v5 stores the session JWT in this cookie
-  // (prefixed with __Secure- on HTTPS, plain on HTTP)
-  const token =
-    request.cookies.get("__Secure-authjs.session-token")?.value ||
-    request.cookies.get("authjs.session-token")?.value;
+  // Verify the signature, expiry and domain rule — the cookie merely existing
+  // proves nothing, since anyone can set one in their browser.
+  const email = await verifyToken(request.cookies.get(SESSION_COOKIE)?.value, "session");
 
-  if (!token) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+  if (!email) {
+    const res = NextResponse.redirect(new URL("/login", request.url));
+    res.cookies.delete(SESSION_COOKIE);
+    return res;
   }
 
   return NextResponse.next();

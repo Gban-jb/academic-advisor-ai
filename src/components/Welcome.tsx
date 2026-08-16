@@ -91,7 +91,7 @@ export default function Welcome({ onStart }: Props) {
               →
             </motion.span>
           </motion.button>
-          <p className="text-xs text-slate-400 mt-4">Free · No account needed · Takes about 2 minutes</p>
+          <p className="text-xs text-slate-400 mt-4">Free for AAMU students · Takes about 2 minutes</p>
         </motion.div>
       </motion.div>
     </div>
