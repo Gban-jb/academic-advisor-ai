@@ -13,6 +13,7 @@
     "@neondatabase/serverless": "^1.1.0",
     "@pinecone-database/pinecone": "^8.1.0",
     "@types/pg": "^8.21.0",
+    "@vercel/analytics": "^2.0.1",
     "ai": "^7.0.37",
     "framer-motion": "^12.40.0",
     "html2pdf.js": "^0.14.0",

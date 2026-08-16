@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
+
+/** This route is public, so it's the one endpoint an anonymous caller could run up. */
+const HOURLY_LIMIT = 60;
 
 // Fetch course descriptions from Pinecone by vector ID.
 // IDs follow the pattern built by build_full_rag_database.py:
@@ -8,6 +12,23 @@ function toPineconeId(code: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    const limit = await rateLimit(`course-info:${clientIp(req)}`, HOURLY_LIMIT, 3600);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests", retryAt: limit.resetAt.toISOString() },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((limit.resetAt.getTime() - Date.now()) / 1000)),
+          },
+        }
+      );
+    }
+  } catch {
+    // A database hiccup shouldn't take the catalog down; fail open.
+  }
+
   const { courseCodes }: { courseCodes: string[] } = await req.json();
 
   const pineconeKey = process.env.PINECONE_API_KEY;

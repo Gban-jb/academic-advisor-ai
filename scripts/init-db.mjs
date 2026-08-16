@@ -23,6 +23,15 @@ await sql`
   )
 `;
 
+await sql`
+  CREATE TABLE IF NOT EXISTS rate_limits (
+    key          text NOT NULL,
+    window_start timestamptz NOT NULL,
+    count        integer NOT NULL DEFAULT 0,
+    PRIMARY KEY (key, window_start)
+  )
+`;
+
 const cols = await sql`
   SELECT column_name, data_type FROM information_schema.columns
   WHERE table_name = 'plans' ORDER BY ordinal_position

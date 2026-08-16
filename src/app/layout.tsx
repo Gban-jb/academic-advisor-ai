@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import SignOutButton from "@/components/SignOutButton";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="app-bg min-h-screen font-sans text-slate-800 antialiased">
         <SignOutButton />
         {children}
+        <Analytics />
       </body>
     </html>
   );
