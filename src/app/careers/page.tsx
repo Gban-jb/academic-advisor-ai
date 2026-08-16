@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import {
   CAREER_SECTIONS,
   FIELD_LABELS,
+  MAJOR_CAREERS,
   type CareerLink,
   type Field,
 } from "@/lib/careers";
@@ -75,6 +76,36 @@ function CareersHub() {
           </FieldChip>
         ))}
       </div>
+
+      {/* Browse by major — the deepest entry point */}
+      <section className="mb-8">
+        <h2 className="mb-1 text-sm font-bold text-slate-900">Start with your major</h2>
+        <p className="mb-3 text-xs text-slate-400">
+          Career paths, what to build before you graduate, who hires AAMU students, and
+          the organizations worth joining — written for each major.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {MAJOR_CAREERS.filter((m) => !field || m.field === field).map((m) => (
+            <a
+              key={m.slug}
+              href={`/careers/${m.slug}`}
+              className="group flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-white px-3.5 py-3 shadow-sm transition-all hover:-translate-y-px hover:border-maroon-300 hover:shadow"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold text-slate-800 group-hover:text-maroon-800">
+                  {m.major}
+                </span>
+                <span className="block truncate text-[11px] text-slate-400">
+                  {m.roles.slice(0, 2).join(" · ")}
+                </span>
+              </span>
+              <span className="shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-maroon-500" aria-hidden>
+                →
+              </span>
+            </a>
+          ))}
+        </div>
+      </section>
 
       {/* Section jump links */}
       <div className="mb-10 flex flex-wrap gap-x-4 gap-y-1 border-b border-slate-100 pb-4 text-xs text-slate-400">

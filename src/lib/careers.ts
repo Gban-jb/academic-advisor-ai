@@ -325,3 +325,289 @@ export const CAREER_SECTIONS: CareerSection[] = [
     ],
   },
 ];
+
+// ─── Per-major career profiles ────────────────────────────────────────────────
+
+export interface Org {
+  name: string;
+  url: string;
+  /** Built for Black or underrepresented professionals in the field. */
+  hbcu?: boolean;
+}
+
+export interface MajorCareer {
+  slug: string;
+  /** Must match a name in MAJORS (university.ts). */
+  major: string;
+  field: Field;
+  /** One or two sentences a student would actually find useful. */
+  summary: string;
+  roles: string[];
+  /** Skills and credentials worth building before graduating. */
+  build: string[];
+  /** Where graduates of this major actually work, Huntsville first where it's true. */
+  employers: string[];
+  orgs: Org[];
+  /** O*NET occupation search seeded for this major. */
+  onetQuery: string;
+}
+
+export function majorSlug(name: string): string {
+  return name.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+/**
+ * Career profiles for every AAMU undergraduate major.
+ *
+ * Huntsville matters here: Redstone Arsenal, NASA Marshall, Cummings Research
+ * Park and HudsonAlpha are on AAMU's doorstep, and for most of these majors the
+ * nearest serious employer is a short drive rather than a plane ride. Where that
+ * is genuinely true for a major, it's said; where it isn't, it isn't.
+ */
+export const MAJOR_CAREERS: MajorCareer[] = [
+  {
+    slug: "computer-science", major: "Computer Science", field: "stem",
+    summary: "The broadest major on this list — software runs through defense, space, healthcare and finance, and Huntsville has more of it per capita than almost any city its size.",
+    roles: ["Software Engineer", "Data Engineer", "Cybersecurity Analyst", "ML / AI Engineer", "Cloud & DevOps Engineer", "Systems Engineer", "Product Manager"],
+    build: ["Two or three projects on GitHub you can explain end to end", "Data structures and algorithms until interviews stop being scary", "One cloud platform (AWS, Azure or GCP) hands-on", "Security clearance eligibility — it opens most Huntsville doors"],
+    employers: ["Redstone Arsenal contractors — Boeing, Northrop Grumman, Lockheed Martin, Leidos", "NASA Marshall Space Flight Center", "Cummings Research Park firms", "Big tech and startups nationwide"],
+    orgs: [
+      { name: "ACM", url: "https://www.acm.org" },
+      { name: "IEEE Computer Society", url: "https://www.computer.org" },
+      { name: "NSBE", url: "https://nsbe.org", hbcu: true },
+      { name: "ColorStack", url: "https://www.colorstack.org", hbcu: true },
+    ],
+    onetQuery: "software developer",
+  },
+  {
+    slug: "electrical-engineering", major: "Electrical Engineering", field: "stem",
+    summary: "Circuits, power, signals and embedded systems. In Huntsville that means missiles, satellites and avionics — the work is here and it needs clearances.",
+    roles: ["Electrical Design Engineer", "Embedded Systems Engineer", "RF / Communications Engineer", "Power Systems Engineer", "Test Engineer", "Controls Engineer"],
+    build: ["A hardware project — FPGA, microcontroller, PCB — you built and debugged", "MATLAB and Simulink", "The FE exam in your senior year", "Security clearance eligibility"],
+    employers: ["Redstone Arsenal and Army aviation/missile commands", "NASA Marshall", "Boeing, Northrop Grumman, Aerojet Rocketdyne", "TVA and regional utilities"],
+    orgs: [
+      { name: "IEEE", url: "https://www.ieee.org" },
+      { name: "NSBE", url: "https://nsbe.org", hbcu: true },
+    ],
+    onetQuery: "electrical engineer",
+  },
+  {
+    slug: "mechanical-engineering", major: "Mechanical Engineering", field: "stem",
+    summary: "Anything that moves, heats, cools or carries load. Propulsion and aerospace structures are the local specialty.",
+    roles: ["Mechanical Design Engineer", "Propulsion Engineer", "Manufacturing Engineer", "Thermal / HVAC Engineer", "Quality Engineer", "Project Engineer"],
+    build: ["CAD fluency — SolidWorks or CATIA — with a portfolio of parts", "Hands-on fabrication or a formula/rocketry team", "The FE exam, then the PE after four years", "An internship every summer from sophomore year"],
+    employers: ["NASA Marshall — propulsion is its core mission", "Boeing, Blue Origin, Aerojet Rocketdyne in the Huntsville corridor", "Toyota, Mazda and Mercedes plants across Alabama", "Federal labs and DoD contractors"],
+    orgs: [
+      { name: "ASME", url: "https://www.asme.org" },
+      { name: "NSBE", url: "https://nsbe.org", hbcu: true },
+    ],
+    onetQuery: "mechanical engineer",
+  },
+  {
+    slug: "civil-engineering", major: "Civil Engineering", field: "stem",
+    summary: "Infrastructure — roads, water, structures, land. It is the most licensure-driven engineering path, and the PE is the whole career ladder.",
+    roles: ["Structural Engineer", "Transportation Engineer", "Water Resources Engineer", "Geotechnical Engineer", "Construction Manager", "Land Development Engineer"],
+    build: ["The FE exam before you graduate — non-negotiable", "AutoCAD and Civil 3D", "A summer with a contractor to see how drawings become buildings", "Then the PE licence after four years of practice"],
+    employers: ["Alabama DOT and city/county engineering offices", "US Army Corps of Engineers", "Regional design firms and general contractors", "TVA"],
+    orgs: [
+      { name: "ASCE", url: "https://www.asce.org" },
+      { name: "NSBE", url: "https://nsbe.org", hbcu: true },
+    ],
+    onetQuery: "civil engineer",
+  },
+  {
+    slug: "mathematics", major: "Mathematics", field: "stem",
+    summary: "The major that turns into other careers. Pair it with computing or statistics and it becomes one of the most flexible degrees you can hold.",
+    roles: ["Data Scientist / Analyst", "Actuary", "Operations Research Analyst", "Cryptologic Mathematician", "Quantitative Analyst", "Secondary Math Teacher"],
+    build: ["Python and R — mathematics without code is hard to hire", "Start the actuarial exams (P and FM) as an undergrad if that appeals", "A statistics or machine-learning minor's worth of coursework", "An REU — it is the single strongest signal for math grad school"],
+    employers: ["National Security Agency — the largest employer of mathematicians in the US", "Insurance and actuarial firms", "Defense analytics contractors in Huntsville", "School districts, with Alabama certification"],
+    orgs: [
+      { name: "MAA", url: "https://www.maa.org" },
+      { name: "SIAM", url: "https://www.siam.org" },
+      { name: "NAM (National Association of Mathematicians)", url: "https://www.nam-math.org", hbcu: true },
+    ],
+    onetQuery: "mathematician statistician",
+  },
+  {
+    slug: "physics", major: "Physics", field: "stem",
+    summary: "Trains you to model unfamiliar problems from first principles. Most physics graduates go into industry or national labs rather than academia — and that is a good outcome, not a fallback.",
+    roles: ["Research Physicist", "Optics / Photonics Engineer", "Materials Scientist", "Systems Analyst", "Medical Physicist (with grad school)", "Data Scientist"],
+    build: ["Serious lab technique and instrumentation experience", "Computational physics — Python, numerical methods, simulation", "An REU or SULI summer, ideally two", "The Physics GRE if a PhD is the goal"],
+    employers: ["NASA Marshall and its contractors", "Oak Ridge National Laboratory, a few hours away", "Optics and sensor firms in Cummings Research Park", "Graduate programs — physics PhDs are usually funded"],
+    orgs: [
+      { name: "American Physical Society", url: "https://www.aps.org" },
+      { name: "National Society of Black Physicists", url: "https://www.nsbp.org", hbcu: true },
+    ],
+    onetQuery: "physicist",
+  },
+  {
+    slug: "biology", major: "Biology", field: "life",
+    summary: "The pre-health default, but far from the only route — biotech, environmental science and research careers all start here, and HudsonAlpha puts genomics on your doorstep.",
+    roles: ["Research Technician", "Laboratory Scientist", "Biotechnology Associate", "Environmental Scientist", "Physician / Dentist / PA (with professional school)", "Science Teacher"],
+    build: ["Bench research with a professor, starting sophomore year", "The MCAT/DAT timeline mapped out by junior year if pre-health", "Clinical or shadowing hours — professional schools expect them", "One summer program: ABRCMS, Amgen or an NIH lab"],
+    employers: ["HudsonAlpha Institute for Biotechnology, in Huntsville", "Hospitals and clinical labs across north Alabama", "USDA, EPA and state environmental agencies", "Pharmaceutical and biotech firms"],
+    orgs: [
+      { name: "ABRCMS", url: "https://abrcms.org", hbcu: true },
+      { name: "American Institute of Biological Sciences", url: "https://www.aibs.org" },
+      { name: "BIO", url: "https://www.bio.org" },
+    ],
+    onetQuery: "biological scientist",
+  },
+  {
+    slug: "chemistry", major: "Chemistry", field: "life",
+    summary: "Analytical skill that industry pays for directly — quality labs, materials, pharma and forensics all hire chemists straight out of undergrad.",
+    roles: ["Analytical Chemist", "Quality Control Chemist", "Materials Scientist", "Forensic Chemist", "Process Chemist", "Pharmacist (with PharmD)"],
+    build: ["Instrumentation — HPLC, GC-MS, NMR — named on your résumé", "Undergraduate research, then present it at a conference", "ACS student chapter involvement", "Lab safety and documentation habits employers actually check"],
+    employers: ["Chemical and materials manufacturers across Alabama", "Forensic and crime labs", "Pharmaceutical QC and process labs", "Federal labs — Oak Ridge, NASA materials groups"],
+    orgs: [
+      { name: "American Chemical Society", url: "https://www.acs.org" },
+      { name: "NOBCChE", url: "https://www.nobcche.org", hbcu: true },
+    ],
+    onetQuery: "chemist",
+  },
+  {
+    slug: "food-science", major: "Food Science", field: "life",
+    summary: "Chemistry and biology applied to what people eat — product development, safety and regulation. AAMU's agricultural roots make this a genuine strength.",
+    roles: ["Food Scientist", "Product Development Technologist", "Quality Assurance Manager", "Food Safety Inspector", "Sensory Scientist", "Regulatory Affairs Specialist"],
+    build: ["HACCP certification — employers ask for it by name", "A product development project from formulation to sensory panel", "A summer in a commercial food plant", "Statistics for experimental design"],
+    employers: ["USDA and FDA — inspection and regulatory roles", "Food manufacturers and co-packers across the Southeast", "Agricultural extension services", "Grocery and restaurant supply chains"],
+    orgs: [
+      { name: "Institute of Food Technologists", url: "https://www.ift.org" },
+      { name: "MANRRS", url: "https://www.manrrs.org", hbcu: true },
+    ],
+    onetQuery: "food scientist",
+  },
+  {
+    slug: "animal-science", major: "Animal Science", field: "life",
+    summary: "Production, nutrition, and veterinary preparation. The pre-vet route is competitive and demands hours with animals starting early.",
+    roles: ["Animal Nutritionist", "Livestock Production Manager", "Veterinarian (with DVM)", "Agricultural Extension Agent", "Animal Research Technician", "USDA Inspector"],
+    build: ["Veterinary shadowing hours — hundreds, not dozens, if pre-vet", "Hands-on livestock or lab animal experience", "The GRE and a VMCAS timeline by junior year if pre-vet", "An extension or 4-H leadership role"],
+    employers: ["USDA — research, inspection and extension", "Veterinary clinics and diagnostic labs", "Livestock and poultry operations across Alabama", "Land-grant research stations, including AAMU's own"],
+    orgs: [
+      { name: "American Society of Animal Science", url: "https://www.asas.org" },
+      { name: "MANRRS", url: "https://www.manrrs.org", hbcu: true },
+    ],
+    onetQuery: "animal scientist",
+  },
+  {
+    slug: "business-administration", major: "Business Administration", field: "business",
+    summary: "The generalist business degree — its value comes from what you specialise it with. Internships matter more here than in almost any other major.",
+    roles: ["Management Analyst", "Operations Manager", "Financial Analyst", "Human Resources Specialist", "Supply Chain Analyst", "Business Development Manager"],
+    build: ["Excel to a genuinely advanced level, then SQL", "Two internships before senior year — this field recruits on experience", "A leadership role in a student organization", "A concentration you can name and defend in an interview"],
+    employers: ["Defense contractors' program and business offices in Huntsville", "Regional banks and financial services", "Retail, logistics and healthcare systems", "Federal agencies through USAJOBS Pathways"],
+    orgs: [
+      { name: "National Black MBA Association", url: "https://nbmbaa.org", hbcu: true },
+      { name: "SHRM", url: "https://www.shrm.org" },
+    ],
+    onetQuery: "management analyst",
+  },
+  {
+    slug: "accounting", major: "Accounting", field: "business",
+    summary: "The most direct line from major to profession on this list. The CPA is the credential the whole career turns on, and the 150-hour rule shapes your final year.",
+    roles: ["Staff Accountant", "Auditor", "Tax Associate", "Forensic Accountant", "Government Accountant", "Controller (later career)"],
+    build: ["Plan for the 150 credit hours the CPA requires — decide early", "Recruit for Big Four and regional firms in your junior fall", "Excel modelling and one accounting system (QuickBooks, SAP)", "Begin CPA exam sections as soon as you are eligible"],
+    employers: ["Big Four and regional public accounting firms", "Federal agencies — GAO, IRS, DCAA (large presence in Huntsville)", "Defense contractor finance departments", "State and municipal government"],
+    orgs: [
+      { name: "AICPA", url: "https://www.aicpa.org" },
+      { name: "NABA", url: "https://www.nabainc.org", hbcu: true },
+    ],
+    onetQuery: "accountant auditor",
+  },
+  {
+    slug: "marketing", major: "Marketing", field: "business",
+    summary: "Increasingly analytical — the work is as much measurement as it is creative. A portfolio of real campaigns beats a high GPA in hiring.",
+    roles: ["Marketing Coordinator", "Digital Marketing Specialist", "Market Research Analyst", "Social Media Manager", "Brand Manager", "Sales Representative"],
+    build: ["Google Analytics and Google Ads certifications — free and expected", "A portfolio: real campaigns, real numbers, even for a campus club", "Basic data skills — Excel, and SQL if you can", "Content you have actually shipped and can point to"],
+    employers: ["Agencies and in-house marketing teams", "Retail and consumer brands", "Healthcare systems and universities", "Media companies — the T. Howard Foundation route"],
+    orgs: [
+      { name: "American Marketing Association", url: "https://www.ama.org" },
+      { name: "National Black MBA Association", url: "https://nbmbaa.org", hbcu: true },
+    ],
+    onetQuery: "marketing manager",
+  },
+  {
+    slug: "criminal-justice", major: "Criminal Justice", field: "humanities",
+    summary: "Law enforcement, courts, corrections and federal agencies — plus a strong pre-law route. Federal jobs reward internships and clean records above all.",
+    roles: ["Police Officer / Detective", "Federal Agent (FBI, ATF, DEA, Secret Service)", "Probation & Parole Officer", "Crime Analyst", "Paralegal", "Attorney (with law school)"],
+    build: ["A federal internship through USAJOBS Pathways — the main hiring pipeline", "Physical fitness standards, if sworn roles interest you", "Statistics and crime-analysis tools", "The LSAT junior year if law school is the goal"],
+    employers: ["FBI, ATF, DEA, US Marshals and Homeland Security", "State and municipal police departments", "Courts, probation and correctional systems", "Corporate security and investigations"],
+    orgs: [
+      { name: "Academy of Criminal Justice Sciences", url: "https://www.acjs.org" },
+      { name: "NOBLE", url: "https://noblenational.org", hbcu: true },
+    ],
+    onetQuery: "police detective",
+  },
+  {
+    slug: "psychology", major: "Psychology", field: "humanities",
+    summary: "Be clear-eyed: most clinical careers require graduate school. The undergraduate degree is strong preparation for research, human resources and social services — and an excellent springboard.",
+    roles: ["Research Assistant", "Case Manager", "Human Resources Specialist", "Behavioral Health Technician", "UX Researcher", "Clinical Psychologist / Counselor (with grad school)"],
+    build: ["Research with a professor — essential for funded psychology PhDs", "Statistics and SPSS or R", "Direct client or volunteer hours in a human-services setting", "The GRE and a clear grad-school plan by junior year"],
+    employers: ["Hospitals, clinics and community mental-health agencies", "School systems and social service agencies", "Corporate HR and people analytics", "Research universities and VA facilities"],
+    orgs: [
+      { name: "American Psychological Association", url: "https://www.apa.org" },
+      { name: "Association of Black Psychologists", url: "https://abpsi.org", hbcu: true },
+    ],
+    onetQuery: "psychologist",
+  },
+  {
+    slug: "social-work", major: "Social Work", field: "humanities",
+    summary: "One of the few majors with a licensed professional path straight out of undergrad. A BSW often shortens an MSW to a single advanced-standing year.",
+    roles: ["Case Manager", "Child & Family Social Worker", "Medical Social Worker", "Substance Abuse Counselor", "School Social Worker", "Licensed Clinical Social Worker (with MSW)"],
+    build: ["Your field placement — treat it as a long job interview", "Alabama licensure requirements, checked early", "Crisis intervention and trauma-informed care training", "Advanced-standing MSW applications in senior fall"],
+    employers: ["Alabama Department of Human Resources", "Hospitals and hospice organizations", "School districts", "Nonprofits and community agencies"],
+    orgs: [
+      { name: "NASW", url: "https://www.socialworkers.org" },
+      { name: "NABSW", url: "https://www.nabsw.org", hbcu: true },
+    ],
+    onetQuery: "social worker",
+  },
+  {
+    slug: "english", major: "English", field: "humanities",
+    summary: "Writing and analysis transfer everywhere — the trick is proving it. Graduates who pair the degree with a portfolio and one technical skill compete well.",
+    roles: ["Technical Writer", "Content Strategist", "Editor", "Communications Specialist", "Grant Writer", "Teacher / Professor (with certification or grad school)"],
+    build: ["A public portfolio — clips, a blog, published campus journalism", "Technical writing skills; defense contractors hire for this constantly", "An editing or publishing internship", "Alabama teaching certification if the classroom appeals"],
+    employers: ["Defense contractors — proposal and technical documentation teams", "Publishers, newsrooms and marketing agencies", "Universities and nonprofits — grant writing", "K-12 schools with certification"],
+    orgs: [
+      { name: "Modern Language Association", url: "https://www.mla.org" },
+      { name: "Alabama educator certification", url: "https://www.alabamaachieves.org" },
+    ],
+    onetQuery: "technical writer",
+  },
+  {
+    slug: "history", major: "History", field: "humanities",
+    summary: "Research, evidence and argument. Strong pre-law preparation, and a real route into archives, museums and public history — Alabama has more of that work than most states.",
+    roles: ["Archivist", "Museum Curator", "Historic Preservation Specialist", "Policy Researcher", "Attorney (with law school)", "History Teacher"],
+    build: ["A research thesis you can hand to a graduate committee", "Archival or museum volunteering — this field hires on experience", "The LSAT if law school is the plan", "Digital humanities tools set you apart"],
+    employers: ["National Park Service and state historical commissions", "Museums, archives and libraries", "Federal agencies — historians and analysts", "Law schools and K-12 education"],
+    orgs: [
+      { name: "American Historical Association", url: "https://www.historians.org" },
+      { name: "ASALH", url: "https://asalh.org", hbcu: true },
+    ],
+    onetQuery: "historian archivist",
+  },
+  {
+    slug: "communications", major: "Communications", field: "humanities",
+    summary: "Media, PR and strategic communication. Portfolio-first: what you have produced matters more than what you studied.",
+    roles: ["Public Relations Specialist", "Social Media Manager", "Broadcast Producer", "Corporate Communications Specialist", "Journalist", "Media Relations Coordinator"],
+    build: ["A reel or portfolio of published work — start freshman year", "Campus radio, TV or newspaper, then a real newsroom internship", "Video editing and design basics (Adobe suite)", "Analytics — modern comms roles measure everything"],
+    employers: ["Local and national news outlets", "Corporate communications and PR agencies", "NASA and defense public affairs offices in Huntsville", "Universities, nonprofits and government"],
+    orgs: [
+      { name: "NABJ", url: "https://nabj.org", hbcu: true },
+      { name: "PRSA", url: "https://www.prsa.org" },
+      { name: "T. Howard Foundation", url: "https://www.t-howard.org", hbcu: true },
+    ],
+    onetQuery: "public relations specialist",
+  },
+  {
+    slug: "music", major: "Music", field: "humanities",
+    summary: "Performance is only one door. Education, production, therapy and arts administration are where most sustainable music careers are built — and AAMU's marching band tradition is a network in itself.",
+    roles: ["Music Educator", "Performer / Session Musician", "Audio Engineer / Producer", "Music Therapist (with certification)", "Arts Administrator", "Church Music Director"],
+    build: ["Alabama teaching certification alongside the degree — it is the steadiest path", "Recording and production skills (Pro Tools, Logic)", "A performance portfolio and a professional reel", "Business literacy: contracts, royalties, self-employment taxes"],
+    employers: ["K-12 school systems and university music programs", "Recording studios and production houses", "Churches and community arts organizations", "Military bands — a stable, pensioned performance career"],
+    orgs: [
+      { name: "NAfME", url: "https://nafme.org" },
+      { name: "National Association of Negro Musicians", url: "https://www.nanm.org", hbcu: true },
+    ],
+    onetQuery: "musician music teacher",
+  },
+];

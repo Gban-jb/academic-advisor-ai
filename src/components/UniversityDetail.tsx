@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MAJOR_FIELDS } from "@/lib/careers";
+import { majorSlug } from "@/lib/careers";
 import { motion } from "framer-motion";
 import { AAMU, MAJORS, MINORS } from "@/lib/university";
 import { COURSES } from "@/lib/data";
@@ -135,7 +135,7 @@ export default function UniversityDetail({ onBack, onEnterPlanner }: Props) {
                     🎓 Planner soon
                   </span>
                 )}
-                <a href={`/careers${MAJOR_FIELDS[m.name] ? `?field=${MAJOR_FIELDS[m.name]}` : ""}`}
+                <a href={`/careers/${majorSlug(m.name)}`}
                   className="flex-1 text-center text-xs font-medium text-maroon-700 border border-maroon-200 hover:bg-maroon-50 rounded-lg px-2.5 py-1.5 transition-colors">
                   💼 Careers
                 </a>
