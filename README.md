@@ -79,6 +79,11 @@ Listings are filterable by term, role and degree level, with free-text search
 across company, title and location. Each card links straight to the employer's own
 application page — nothing about applicants is collected or stored.
 
+Signed-in students can **save listings** with the ☆ button and switch to a saved
+view. Saves keep their own copy of the company, title and link, so a bookmarked
+posting stays in the list once it closes — marked "no longer listed" rather than
+silently vanishing.
+
 **There are no application deadlines, because the source doesn't publish any.**
 None of its 14,286 listings carries a closing date. What it does carry is used
 instead: when a posting was created and last updated, which degree levels it's
@@ -159,6 +164,7 @@ Tables created by `scripts/init-db.mjs` (safe to re-run):
 | `rate_limits` | Fixed-window counters for the public API. |
 | `internships` | Mirror of upcoming internship postings, keyed by (listing, term). |
 | `internship_sync` | Single-row lock and timestamp for the mirror refresh. |
+| `saved_internships` | Listings a student bookmarked, with a snapshot of each. |
 
 `users`, `accounts`, `sessions` and `verification_tokens` are leftovers from an
 earlier NextAuth setup and are no longer used.

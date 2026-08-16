@@ -102,6 +102,24 @@ await sql`CREATE INDEX IF NOT EXISTS internships_term_idx ON internships (term)`
 await sql`CREATE INDEX IF NOT EXISTS internships_category_idx ON internships (category)`;
 await sql`CREATE INDEX IF NOT EXISTS internships_posted_idx ON internships (posted_at DESC)`;
 
+// Saved listings keep their own copy of company/title/url: a posting a student
+// bookmarked disappears from `internships` the moment it closes, and losing the
+// record of what you saved would be worse than showing it as no longer open.
+await sql`
+  CREATE TABLE IF NOT EXISTS saved_internships (
+    email      text NOT NULL,
+    listing_id text NOT NULL,
+    term       text NOT NULL,
+    company    text NOT NULL,
+    title      text NOT NULL,
+    url        text NOT NULL,
+    category   text,
+    saved_at   timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (email, listing_id, term)
+  )
+`;
+await sql`CREATE INDEX IF NOT EXISTS saved_internships_email_idx ON saved_internships (email)`;
+
 // Single-row table used as a lock so concurrent requests don't all pull 10MB.
 await sql`
   CREATE TABLE IF NOT EXISTS internship_sync (

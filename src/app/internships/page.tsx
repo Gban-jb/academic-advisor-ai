@@ -15,7 +15,9 @@ interface Listing {
   degrees: string[];
   sponsorship: string | null;
   postedAt: string | null;
-  sourceUpdatedAt: string | null;
+  sourceUpdatedAt?: string | null;
+  stillListed?: boolean;
+  savedAt?: string;
 }
 
 interface Facet {
@@ -57,6 +59,70 @@ export default function InternshipsPage() {
   const [loading, setLoading] = useState(true);
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const firstLoad = useRef(true);
+
+  const [authed, setAuthed] = useState(false);
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+  const [savedList, setSavedList] = useState<Listing[]>([]);
+  const [showSaved, setShowSaved] = useState(false);
+
+  const keyOf = (l: { id: string; term: string }) => `${l.id}::${l.term}`;
+
+  const refreshSaved = useCallback(async () => {
+    try {
+      const res = await fetch("/api/internships/saved");
+      if (!res.ok) return;
+      const d = await res.json();
+      setSavedList(d.saved);
+      setSavedKeys(new Set(d.saved.map((x: Listing) => `${x.id}::${x.term}`)));
+    } catch {
+      /* saved state is a nicety; the board still works without it */
+    }
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/session")
+      .then((r) => r.json())
+      .then((d) => {
+        setAuthed(Boolean(d.authenticated));
+        if (d.authenticated) refreshSaved();
+      })
+      .catch(() => {});
+  }, [refreshSaved]);
+
+  async function toggleSave(l: Listing) {
+    const key = keyOf(l);
+    const saved = savedKeys.has(key);
+
+    // Optimistic — a bookmark that lags behind the click feels broken.
+    setSavedKeys((prev) => {
+      const next = new Set(prev);
+      if (saved) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+    try {
+      const res = saved
+        ? await fetch(
+            `/api/internships/saved?id=${encodeURIComponent(l.id)}&term=${encodeURIComponent(l.term)}`,
+            { method: "DELETE" }
+          )
+        : await fetch("/api/internships/saved", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: l.id, term: l.term }),
+          });
+      if (!res.ok) throw new Error(String(res.status));
+      refreshSaved();
+    } catch {
+      setSavedKeys((prev) => {
+        const next = new Set(prev);
+        if (saved) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+    }
+  }
 
   // Debounce typing so each keystroke isn't a query.
   useEffect(() => {
@@ -177,13 +243,38 @@ export default function InternshipsPage() {
         </div>
       </div>
 
-      <p className="mb-4 text-xs text-slate-400">
-        {loading && firstLoad.current ? "Loading…" : `${total.toLocaleString()} openings`}
-      </p>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="text-xs text-slate-400">
+          {showSaved
+            ? `${savedList.length} saved`
+            : loading && firstLoad.current
+              ? "Loading…"
+              : `${total.toLocaleString()} openings`}
+        </p>
+        {authed ? (
+          <button
+            onClick={() => setShowSaved((v) => !v)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              showSaved
+                ? "border-maroon-300 bg-maroon-50 text-maroon-800"
+                : "border-slate-200 bg-white text-slate-600 hover:border-maroon-200"
+            }`}
+          >
+            {showSaved ? "← All openings" : `★ Saved (${savedKeys.size})`}
+          </button>
+        ) : (
+          <a
+            href="/login?next=%2Finternships"
+            className="text-xs text-slate-400 underline underline-offset-2 hover:text-maroon-700"
+          >
+            Sign in to save listings
+          </a>
+        )}
+      </div>
 
       {/* Listings */}
       <div className="space-y-2">
-        {listings.map((l, i) => (
+        {(showSaved ? savedList : listings).map((l, i) => (
           <motion.a
             key={`${l.id}-${l.term}`}
             href={l.url}
@@ -214,6 +305,12 @@ export default function InternshipsPage() {
                 {l.sourceUpdatedAt && `, updated ${postedLabel(l.sourceUpdatedAt)}`}
               </p>
 
+              {showSaved && l.stillListed === false && (
+                <p className="mt-1.5 text-xs text-amber-700">
+                  No longer listed — this posting has closed or been filled.
+                </p>
+              )}
+
               {(l.degrees.length > 0 || l.sponsorship) && (
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   {l.degrees.map((d) => (
@@ -232,14 +329,43 @@ export default function InternshipsPage() {
                 </div>
               )}
             </div>
-            <span className="shrink-0 self-center rounded-lg bg-maroon-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors group-hover:bg-maroon-800">
-              Apply →
+            <span className="flex shrink-0 items-center gap-2 self-center">
+              {authed && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSave(l);
+                  }}
+                  aria-label={savedKeys.has(keyOf(l)) ? "Remove from saved" : "Save this listing"}
+                  title={savedKeys.has(keyOf(l)) ? "Saved — click to remove" : "Save"}
+                  className={`rounded-lg border px-2 py-1.5 text-xs transition-colors ${
+                    savedKeys.has(keyOf(l))
+                      ? "border-amber-300 bg-amber-50 text-amber-700"
+                      : "border-slate-200 bg-white text-slate-400 hover:border-maroon-200 hover:text-maroon-700"
+                  }`}
+                >
+                  {savedKeys.has(keyOf(l)) ? "★" : "☆"}
+                </button>
+              )}
+              <span className="rounded-lg bg-maroon-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors group-hover:bg-maroon-800">
+                Apply →
+              </span>
             </span>
           </motion.a>
         ))}
       </div>
 
-      {!loading && listings.length === 0 && (
+      {showSaved && savedList.length === 0 && (
+        <div className="rounded-xl border border-slate-100 bg-white p-10 text-center">
+          <p className="text-sm text-slate-500">You haven&apos;t saved any listings yet.</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Tap ☆ on any opening to keep it here.
+          </p>
+        </div>
+      )}
+
+      {!showSaved && !loading && listings.length === 0 && (
         <div className="rounded-xl border border-slate-100 bg-white p-10 text-center">
           <p className="text-sm text-slate-500">No openings match that search.</p>
           <button
@@ -256,7 +382,7 @@ export default function InternshipsPage() {
         </div>
       )}
 
-      {listings.length < total && (
+      {!showSaved && listings.length < total && (
         <div className="mt-6 text-center">
           <button
             onClick={() => {

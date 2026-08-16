@@ -18,6 +18,8 @@ const PROTECTED_PREFIXES = [
   "/api/extract-transcript",
   "/api/banner",
   "/api/plans",
+  // The internships board itself is public; only a student's own saves aren't.
+  "/api/internships/saved",
 ];
 
 export async function middleware(request: NextRequest) {
