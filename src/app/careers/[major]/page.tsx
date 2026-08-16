@@ -6,6 +6,7 @@ import {
   MAJOR_CAREERS,
   type CareerLink,
 } from "@/lib/careers";
+import { hasCurriculum, hasInteractivePlanner } from "@/lib/curricula";
 
 interface Props {
   params: { major: string };
@@ -79,6 +80,32 @@ export default function MajorCareerPage({ params }: Props) {
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-base">
           {major.summary}
         </p>
+
+        {(hasInteractivePlanner(major.slug) || hasCurriculum(major.slug)) && (
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              🎓 Graduation planning
+            </span>
+            {hasInteractivePlanner(major.slug) && (
+              <a
+                href="/planner"
+                className="rounded-lg bg-maroon-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-maroon-800"
+              >
+                Open interactive planner →
+              </a>
+            )}
+            {hasCurriculum(major.slug) && (
+              <a
+                href={`/careers/${major.slug}/curriculum`}
+                className="rounded-lg border border-maroon-200 bg-white px-3 py-1.5 text-xs font-medium text-maroon-800 transition-colors hover:bg-maroon-50"
+              >
+                {hasInteractivePlanner(major.slug)
+                  ? "View 4-year sample plan"
+                  : "View 4-year sample plan from Bulletin"}
+              </a>
+            )}
+          </div>
+        )}
       </header>
 
       {/* Roles */}

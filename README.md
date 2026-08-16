@@ -12,9 +12,13 @@ checked, credits balanced — all the way to graduation.
 
 The site is organised around the two things a student needs a plan for:
 
-- **Graduation Planning** — the transcript-aware degree planner (`/planner`).
-  Computer Science has the full prerequisite-aware experience; every other AAMU
-  major is listed with its catalog and will gain a planner as course data lands.
+- **Graduation Planning** — the transcript-aware degree planner (`/planner`)
+  for Computer Science, plus **bulletin-transcribed 4-year sample plans** at
+  `/careers/[major]/curriculum` for Mathematics, Physics and Electrical
+  Engineering. The interactive planner needs a full course + prereq database
+  for each major (~40 courses each); the sample-plan view works from the
+  bulletin's own tables and is prereq-valid by construction, so students in
+  those majors get real semester-by-semester guidance today.
 - **Career Perspectives** — `/careers`, a curated hub of internships & jobs,
   hackathons, research programs, fellowships and resources, plus a dedicated
   page per major at `/careers/[major]` for **all 20 AAMU undergraduate majors**.
@@ -218,6 +222,7 @@ src/
     rate-limit.ts         Postgres-backed rate limiting
     internships.ts        Mirrors and filters the SimplifyJobs listings
     careers.ts            Curated career content + per-major profiles
+    curricula.ts          Sample 4-year plans transcribed from the AAMU Bulletin
 scraper-server/           Banner scraper (deployed separately to Railway)
 scripts/init-db.mjs       Database setup
 ```

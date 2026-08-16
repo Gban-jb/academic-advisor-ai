@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { majorSlug } from "@/lib/careers";
+import { hasCurriculum, hasInteractivePlanner } from "@/lib/curricula";
 import { motion } from "framer-motion";
 import { AAMU, MAJORS, MINORS } from "@/lib/university";
 import { COURSES } from "@/lib/data";
@@ -109,8 +110,9 @@ export default function UniversityDetail({ onBack, onEnterPlanner }: Props) {
       <Section i={2}>
         <h2 className="text-lg font-semibold text-slate-900 mb-1">Majors</h2>
         <p className="text-sm text-slate-500 mb-4">
-          Every major has career resources. Computer Science also has the full degree
-          planner — more majors are on the way.
+          Every major has career resources. Computer Science has the full interactive
+          planner; several others now include the bulletin&apos;s official 4-year plan,
+          with more on the way.
         </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mb-10">
           {MAJORS.map((m, i) => (
@@ -123,16 +125,21 @@ export default function UniversityDetail({ onBack, onEnterPlanner }: Props) {
                 <div className="text-xs text-slate-400 truncate">{m.college}</div>
               </div>
               <div className="flex items-center gap-1.5">
-                {m.planner ? (
+                {hasInteractivePlanner(majorSlug(m.name)) ? (
                   <button onClick={onEnterPlanner}
                     className="flex-1 text-xs font-semibold text-white bg-maroon-700 hover:bg-maroon-800 rounded-lg px-2.5 py-1.5 transition-colors">
                     🎓 Plan graduation
                   </button>
+                ) : hasCurriculum(majorSlug(m.name)) ? (
+                  <a href={`/careers/${majorSlug(m.name)}/curriculum`}
+                    className="flex-1 text-center text-xs font-semibold text-white bg-maroon-700 hover:bg-maroon-800 rounded-lg px-2.5 py-1.5 transition-colors">
+                    🎓 4-year plan
+                  </a>
                 ) : (
                   <span
                     title="A full planner for this major is coming — the CS planner is the pilot."
                     className="flex-1 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg px-2.5 py-1.5 cursor-default">
-                    🎓 Planner soon
+                    🎓 Plan soon
                   </span>
                 )}
                 <a href={`/careers/${majorSlug(m.name)}`}
