@@ -69,13 +69,20 @@ export default function Planner({ onExit, major }: Props) {
     return list;
   }
 
-  // First load: open the most recently used plan, creating one if this is a
-  // student's first visit.
+  // First load: wipe any plans left over from a previous login, then start
+  // fresh. sessionStorage acts as the per-browser-session marker — it clears
+  // when the browser closes, so every new login always starts from scratch.
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const list = await refreshList();
+        const isNewSession = !sessionStorage.getItem("planner_session");
+        if (isNewSession) {
+          sessionStorage.setItem("planner_session", "1");
+          await fetch("/api/plans", { method: "DELETE" });
+        }
+
+        const list = isNewSession ? [] : await refreshList();
         if (!active) return;
 
         if (list.length === 0) {

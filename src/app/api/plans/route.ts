@@ -87,3 +87,11 @@ export async function POST(req: NextRequest) {
   `;
   return NextResponse.json({ id, name }, { headers: noStore });
 }
+
+/** Wipe all plans for the signed-in student — called at the start of each new session. */
+export async function DELETE(req: NextRequest) {
+  const email = await getSessionEmail(req);
+  if (!email) return unauthorized();
+  await db()`DELETE FROM plans WHERE email = ${email}`;
+  return NextResponse.json({ ok: true }, { headers: noStore });
+}
