@@ -1,41 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAllowedEmail, normaliseEmail, safeNextPath, signMagicToken } from "@/lib/auth";
-import { db } from "@/lib/db";
-
-const LINK_TTL_MINUTES = 15;
+import { isAllowedEmail, normaliseEmail, signMagicToken, safeNextPath } from "@/lib/auth";
 
 const FROM = process.env.AUTH_EMAIL_FROM ?? "onboarding@resend.dev";
 const BASE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
 
 export async function POST(req: NextRequest) {
-  const { email, next } = await req.json();
-  const normalised = normaliseEmail(email);
+  const body = await req.json();
+  const email = normaliseEmail(body.email);
+  const next = safeNextPath(body.next);
 
-  if (!normalised) return NextResponse.json({ error: "Email required" }, { status: 400 });
-  if (!isAllowedEmail(normalised))
+  if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
+  if (!isAllowedEmail(email))
     return NextResponse.json({ error: "NotAllowed" }, { status: 403 });
 
-  // A pending request lets the tab that asked for the link finish signing in,
-  // even when the link is opened on a different device.
-  let requestId: string | null = null;
-  try {
-    const id = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + LINK_TTL_MINUTES * 60_000).toISOString();
-    await db()`
-      INSERT INTO login_requests (id, email, next_path, expires_at)
-      VALUES (${id}, ${normalised}, ${safeNextPath(next)}, ${expiresAt})
-    `;
-    requestId = id;
-
-    if (Math.random() < 0.05) {
-      await db()`DELETE FROM login_requests WHERE expires_at < now() - interval '1 day'`;
-    }
-  } catch (err) {
-    // Without a pending row the link still works on the device that opens it.
-    console.error("login_requests insert failed:", err);
-  }
-
-  const token = await signMagicToken(normalised, next, requestId ?? undefined);
+  const token = await signMagicToken(email, next);
   const link = `${BASE_URL}/api/magic-link/verify?token=${encodeURIComponent(token)}`;
 
   const res = await fetch("https://api.resend.com/emails", {
@@ -46,7 +24,7 @@ export async function POST(req: NextRequest) {
     },
     body: JSON.stringify({
       from: FROM,
-      to: normalised,
+      to: email,
       subject: "Sign in to AAMU Degree Planner",
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
@@ -69,8 +47,8 @@ export async function POST(req: NextRequest) {
         code = "SenderRestriction";
       }
     } catch { /* ignore */ }
-    return NextResponse.json({ error: code, detail: err }, { status: 500 });
+    return NextResponse.json({ error: code }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, requestId });
+  return NextResponse.json({ ok: true });
 }

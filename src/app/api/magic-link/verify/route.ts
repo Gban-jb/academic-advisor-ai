@@ -6,6 +6,7 @@ import {
   verifyMagicToken,
 } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { wipeUserData } from "@/lib/wipe-user-data";
 
 /**
  * Opening a sign-in link.
@@ -42,6 +43,10 @@ export async function GET(req: NextRequest) {
   }
 
   // Nothing waiting (or the database is unavailable) — sign in this device.
+  // Wipe any persisted planner/bookmark data before minting the new session so
+  // every fresh login starts with a clean slate (see wipe-user-data.ts).
+  await wipeUserData(result.email);
+
   const res = NextResponse.redirect(new URL(result.next, req.url));
   res.cookies.set(SESSION_COOKIE, await signSessionToken(result.email), sessionCookieOptions);
   return res;

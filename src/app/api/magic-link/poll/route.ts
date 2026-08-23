@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, sessionCookieOptions, signSessionToken } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { wipeUserData } from "@/lib/wipe-user-data";
 
 const noStore = { "Cache-Control": "no-store" };
 
@@ -42,6 +43,9 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({ status: "pending" }, { headers: noStore });
   }
+
+  // Cross-device login: same fresh-slate policy as the direct login path.
+  await wipeUserData(claimed.email as string);
 
   const res = NextResponse.json(
     { status: "approved", next: claimed.next_path ?? "/" },

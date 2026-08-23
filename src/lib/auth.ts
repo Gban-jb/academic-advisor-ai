@@ -7,9 +7,6 @@ import { SignJWT, jwtVerify } from "jose";
  * this exact same code to verify sessions without pulling in Node-only APIs.
  */
 
-/** The only domains allowed to sign in. */
-export const ALLOWED_DOMAINS = ["gmail.com", "bulldogs.aamu.edu"] as const;
-
 export const SESSION_COOKIE = "aamu.session";
 
 const MAGIC_LINK_TTL = "15m";
@@ -29,13 +26,18 @@ export function normaliseEmail(raw: unknown): string {
 }
 
 /**
- * Sign-in is limited to @gmail.com and @bulldogs.aamu.edu — nothing else.
- * Expects an already-normalised (trimmed, lower-cased) address.
+ * Any @gmail.com address, any .edu address, or any address in the
+ * ALLOWED_EMAILS env var may sign in. Expects a normalised email.
  */
 export function isAllowedEmail(email: string): boolean {
-  const match = /^[^\s@]+@([^\s@]+\.[^\s@]+)$/.exec(email);
+  const match = /^[^\s@]+@([^\s@.]+\.[^\s@]+)$/.exec(email);
   if (!match) return false;
-  return (ALLOWED_DOMAINS as readonly string[]).includes(match[1]);
+  const domain = match[1];
+  if (domain === "gmail.com") return true;
+  if (domain.endsWith(".edu")) return true;
+  const extra = (process.env.ALLOWED_EMAILS ?? "")
+    .split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return extra.includes(email);
 }
 
 /**
@@ -108,10 +110,19 @@ export async function verifyMagicToken(
   }
 }
 
+/**
+ * Session cookie options.
+ *
+ * Deliberately a browser-session cookie (no `maxAge`, no `expires`): the browser
+ * discards it as soon as the browser is closed. Combined with the wipe-on-login
+ * flow that clears saved plans, this makes the app effectively ephemeral —
+ * closing the browser and coming back requires signing in again and starts
+ * with a fresh, empty planner. The JWT still carries a 7-day expiry as a
+ * server-side backstop in case a browser hangs onto the cookie unexpectedly.
+ */
 export const sessionCookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
   sameSite: "lax",
-  maxAge: SESSION_TTL_SECONDS,
   path: "/",
 } as const;
